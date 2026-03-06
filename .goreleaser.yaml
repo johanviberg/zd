@@ -39,6 +39,7 @@ brews:
   - repository:
       owner: johanviberg
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/johanviberg/zd"
     description: "AI agent-friendly CLI for Zendesk"
     license: "MIT"
