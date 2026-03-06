@@ -30,18 +30,13 @@ go build -o zd
 
 ## Authentication
 
-### API token
+Choose **one** of the methods below. Do not mix methods — `zd` uses the first credentials it finds (environment variables take priority over stored credentials).
 
-```bash
-zd auth login --method token \
-  --subdomain mycompany \
-  --email you@example.com \
-  --api-token YOUR_API_TOKEN
-```
+### OAuth (recommended)
 
-### Setting up an OAuth client in Zendesk
+OAuth is the recommended authentication method. It uses a browser-based consent flow, avoids putting secrets on the command line, and the resulting token is scoped to only the permissions you grant.
 
-Before using the OAuth flow, you need to register an OAuth client in Zendesk:
+#### 1. Register an OAuth client in Zendesk
 
 1. In Admin Center, go to **Apps and integrations → APIs → OAuth clients**, then click **Add OAuth client**.
 2. Fill in the fields:
@@ -52,9 +47,7 @@ Before using the OAuth flow, you need to register an OAuth client in Zendesk:
 3. Click **Save**. A **Secret** field appears — copy it immediately, it is only shown in full once.
 4. Note the **Identifier** field — this is the Client ID.
 
-Use the Identifier as `--client-id` and the Secret as `--client-secret` in the command below.
-
-### OAuth (browser flow)
+#### 2. Log in
 
 ```bash
 zd auth login \
@@ -65,19 +58,30 @@ zd auth login \
 
 This opens a browser window for the OAuth consent flow. The CLI requests `read write` scopes. The token is stored locally.
 
-### Environment variables
+### API token
 
-You can skip `auth login` entirely by setting environment variables:
+If you can't use OAuth (e.g. in headless environments or CI), you can authenticate with an API token instead:
 
 ```bash
-# API token auth
+zd auth login --method token \
+  --subdomain mycompany \
+  --email you@example.com \
+  --api-token YOUR_API_TOKEN
+```
+
+### Environment variables
+
+As an alternative to `auth login`, you can set environment variables. This is useful for CI/CD or scripts. Environment variables always take priority over stored credentials.
+
+```bash
+# OAuth token
+export ZENDESK_SUBDOMAIN=mycompany
+export ZENDESK_OAUTH_TOKEN=your_oauth_token
+
+# Or API token
 export ZENDESK_SUBDOMAIN=mycompany
 export ZENDESK_EMAIL=you@example.com
 export ZENDESK_API_TOKEN=your_token
-
-# Or OAuth token
-export ZENDESK_SUBDOMAIN=mycompany
-export ZENDESK_OAUTH_TOKEN=your_oauth_token
 ```
 
 ### Check auth status
@@ -135,9 +139,23 @@ Errors always go to stderr. When using `--output json`, errors are also structur
 
 ## Using with AI agents
 
-`zd` is designed to be used by AI agents like Claude Code. Two commands make this possible:
+`zd` is designed to be used by AI agents like Claude Code. The quickest way to get started is to install the bundled agent skill.
 
-### Command discovery
+### Agent skill
+
+`zd` ships with an [agent skill](https://skills.sh/) that teaches your AI agent how to authenticate, discover commands, handle errors, and run common workflows. Install it with the [skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add johanviberg/zd
+```
+
+This copies the skill into your agent's skills directory (e.g. `.claude/skills/` for Claude Code). Once installed, the agent can use `zd` without any additional setup in your project files.
+
+### Self-describing commands
+
+Two built-in commands make `zd` discoverable at runtime, even without the skill:
+
+#### Command discovery
 
 `zd commands` lists every available command with its flags, types, defaults, and argument names:
 
@@ -147,7 +165,7 @@ zd commands -o json
 
 An agent can call this once to learn the full CLI surface.
 
-### JSON Schema for tool calling
+#### JSON Schema for tool calling
 
 `zd schema` generates a JSON Schema for any command's input, which maps directly to tool-calling conventions:
 
