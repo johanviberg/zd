@@ -10,7 +10,7 @@ import (
 
 type TicketService interface {
 	List(ctx context.Context, opts *types.ListTicketsOptions) (*types.TicketPage, error)
-	Get(ctx context.Context, id int64, opts *types.GetTicketOptions) (*types.Ticket, error)
+	Get(ctx context.Context, id int64, opts *types.GetTicketOptions) (*types.TicketResult, error)
 	Create(ctx context.Context, req *types.CreateTicketRequest) (*types.Ticket, error)
 	Update(ctx context.Context, id int64, req *types.UpdateTicketRequest) (*types.Ticket, error)
 	Delete(ctx context.Context, id int64) error

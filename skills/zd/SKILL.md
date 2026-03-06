@@ -78,13 +78,18 @@ These are always accurate. For a static fallback, see [reference/commands.md](re
 zd tickets list -o json --limit 25
 zd tickets list -o json --status open --sort updated_at --sort-order desc
 zd tickets list -o json --assignee 12345 --group 67890
+
+# Sideload users to get requester/assignee names
+zd tickets list -o json --include users
+zd tickets list -o json --include users --fields id,subject,requester_name,assignee_name
 ```
 
 ### Show a ticket
 
 ```bash
 zd tickets show 12345 -o json
-zd tickets show 12345 -o json --include users,groups
+zd tickets show 12345 -o json --include users
+zd tickets show 12345 -o json --include users --fields id,subject,requester_name,requester_email
 ```
 
 ### Create a ticket
@@ -137,6 +142,9 @@ zd tickets delete 12345 -o json --yes
 zd tickets search "status:open priority:high" -o json
 zd tickets search "tags:vip assignee:jane created>2024-01-01" -o json
 zd tickets search "status:open OR status:pending" -o json --sort-by updated_at
+
+# Sideload users
+zd tickets search "status:open" -o json --include users
 ```
 
 For large result sets (>1000):
@@ -163,6 +171,14 @@ Limit output to specific fields:
 
 ```bash
 zd tickets list -o json --fields id,status,subject,updated_at
+```
+
+### Sideloading users
+
+Use `--include users` on `list`, `show`, or `search` to resolve `requester_id` and `assignee_id` into names and emails. The output is enriched with `requester_name`, `requester_email`, `assignee_name`, and `assignee_email` fields:
+
+```bash
+zd tickets show 12345 -o json --include users --fields id,subject,requester_name,assignee_name
 ```
 
 ### Pagination
@@ -210,3 +226,4 @@ When using `zd` from an AI agent or automated pipeline:
 - **Use `--dry-run` then `--confirm`** for deletes to prevent accidental data loss
 - **Prefer token auth** via env vars — OAuth requires a browser
 - **Use `--fields`** to minimize response size when you only need specific data
+- **Use `--include users`** to resolve requester/assignee IDs into names without extra API calls

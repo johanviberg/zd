@@ -3,12 +3,12 @@ package types
 import "fmt"
 
 const (
-	ExitSuccess    = 0
-	ExitGeneral    = 1
-	ExitArgError   = 2
-	ExitAuthError  = 3
-	ExitRetryable  = 4
-	ExitNotFound   = 5
+	ExitSuccess   = 0
+	ExitGeneral   = 1
+	ExitArgError  = 2
+	ExitAuthError = 3
+	ExitRetryable = 4
+	ExitNotFound  = 5
 )
 
 type AppError struct {

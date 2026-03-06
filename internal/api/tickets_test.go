@@ -64,18 +64,21 @@ func TestTicketService_Get(t *testing.T) {
 	client := testClient(t, handler)
 	svc := NewTicketService(client)
 
-	ticket, err := svc.Get(context.Background(), 12345, nil)
+	result, err := svc.Get(context.Background(), 12345, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if ticket.ID != 12345 {
-		t.Errorf("expected ID 12345, got %d", ticket.ID)
+	if result.Ticket.ID != 12345 {
+		t.Errorf("expected ID 12345, got %d", result.Ticket.ID)
 	}
-	if ticket.Subject != "Test Ticket" {
-		t.Errorf("expected subject 'Test Ticket', got %q", ticket.Subject)
+	if result.Ticket.Subject != "Test Ticket" {
+		t.Errorf("expected subject 'Test Ticket', got %q", result.Ticket.Subject)
 	}
-	if ticket.Status != "open" {
-		t.Errorf("expected status 'open', got %q", ticket.Status)
+	if result.Ticket.Status != "open" {
+		t.Errorf("expected status 'open', got %q", result.Ticket.Status)
+	}
+	if len(result.Users) != 0 {
+		t.Errorf("expected no users, got %d", len(result.Users))
 	}
 }
 
@@ -95,6 +98,71 @@ func TestTicketService_Get_WithInclude(t *testing.T) {
 	_, err := svc.Get(context.Background(), 1, &types.GetTicketOptions{Include: "users"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTicketService_Get_WithUsers(t *testing.T) {
+	fixture, err := os.ReadFile("../../testdata/ticket_with_users.json")
+	if err != nil {
+		t.Fatalf("reading fixture: %v", err)
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(fixture)
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	result, err := svc.Get(context.Background(), 12345, &types.GetTicketOptions{Include: "users"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Ticket.ID != 12345 {
+		t.Errorf("expected ticket ID 12345, got %d", result.Ticket.ID)
+	}
+	if len(result.Users) != 2 {
+		t.Fatalf("expected 2 users, got %d", len(result.Users))
+	}
+	if result.Users[0].Name != "Jane Requester" {
+		t.Errorf("expected first user 'Jane Requester', got %q", result.Users[0].Name)
+	}
+	if result.Users[1].Email != "john@example.com" {
+		t.Errorf("expected second user email 'john@example.com', got %q", result.Users[1].Email)
+	}
+}
+
+func TestTicketService_List_WithInclude(t *testing.T) {
+	fixture, err := os.ReadFile("../../testdata/tickets_list_with_users.json")
+	if err != nil {
+		t.Fatalf("reading fixture: %v", err)
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		include := r.URL.Query().Get("include")
+		if include != "users" {
+			t.Errorf("expected include=users, got %q", include)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(fixture)
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	page, err := svc.List(context.Background(), &types.ListTicketsOptions{Include: "users"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.Tickets) != 2 {
+		t.Errorf("expected 2 tickets, got %d", len(page.Tickets))
+	}
+	if len(page.Users) != 3 {
+		t.Fatalf("expected 3 users, got %d", len(page.Users))
+	}
+	if page.Users[0].Name != "Jane Requester" {
+		t.Errorf("expected first user 'Jane Requester', got %q", page.Users[0].Name)
 	}
 }
 

@@ -135,6 +135,23 @@ Use `--fields` to select specific fields:
 zd tickets list --fields id,status,subject -o json
 ```
 
+### Sideloading related records
+
+Use `--include` to sideload related data (e.g. users) alongside tickets. This resolves IDs like `requester_id` and `assignee_id` into human-readable names and emails:
+
+```bash
+# Show a ticket with requester and assignee names
+zd tickets show 12345 --include users
+
+# List tickets with user names in the table
+zd tickets list --include users
+
+# Combine with field projection
+zd tickets show 12345 --include users --fields id,subject,requester_name,assignee_name
+```
+
+When users are sideloaded, the output is enriched with `requester_name`, `requester_email`, `assignee_name`, and `assignee_email` fields.
+
 Errors always go to stderr. When using `--output json`, errors are also structured JSON on stderr.
 
 ## Using with AI agents
@@ -201,12 +218,12 @@ You can wrap `zd` as an MCP tool by pointing your server at the binary and using
 | `zd auth login` | Authenticate with Zendesk (OAuth or API token) |
 | `zd auth logout` | Remove stored credentials |
 | `zd auth status` | Show current authentication status |
-| `zd tickets list` | List tickets |
-| `zd tickets show <id>` | Show a ticket |
+| `zd tickets list` | List tickets (supports `--include`) |
+| `zd tickets show <id>` | Show a ticket (supports `--include`) |
 | `zd tickets create` | Create a ticket |
 | `zd tickets update <id>` | Update a ticket |
 | `zd tickets delete <id>` | Delete a ticket |
-| `zd tickets search <query>` | Search tickets using Zendesk query syntax |
+| `zd tickets search <query>` | Search tickets (supports `--include`) |
 | `zd config show` | Show current configuration |
 | `zd config set <key> <value>` | Set a configuration value |
 | `zd commands` | List all commands with flags (for agent discovery) |

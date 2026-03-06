@@ -72,11 +72,15 @@ List tickets with optional filtering.
 | `--status` | string | | Filter by status |
 | `--assignee` | int64 | | Filter by assignee ID |
 | `--group` | int64 | | Filter by group ID |
+| `--include` | string | | Sideload related records: `users`, `groups`, `organizations` |
 
 **Default output columns:** `id`, `status`, `priority`, `subject`, `updated_at`
 
+When `--include users` is used, columns change to: `id`, `status`, `priority`, `requester_name`, `assignee_name`, `subject`, `updated_at`. Enriched fields available for `--fields`: `requester_name`, `requester_email`, `assignee_name`, `assignee_email`.
+
 ```bash
 zd tickets list -o json --limit 50 --status open --sort-order asc
+zd tickets list -o json --include users --fields id,subject,requester_name,assignee_name
 ```
 
 ### `zd tickets show <id>`
@@ -89,8 +93,11 @@ Show a single ticket by ID.
 
 **Positional argument:** `id` (required) — ticket ID
 
+When `--include users` is used, output is enriched with `requester_name`, `requester_email`, `assignee_name`, `assignee_email`.
+
 ```bash
-zd tickets show 12345 -o json --include users,groups
+zd tickets show 12345 -o json --include users
+zd tickets show 12345 -o json --include users --fields id,subject,requester_name,requester_email
 ```
 
 ### `zd tickets create`
@@ -174,13 +181,17 @@ Search tickets using Zendesk search syntax.
 | `--sort-by` | string | | Sort field |
 | `--sort-order` | string | `desc` | Sort order: `asc` or `desc` |
 | `--export` | bool | `false` | Use export endpoint for >1000 results |
+| `--include` | string | | Sideload related records: `users`, `groups`, `organizations` |
 
 **Positional argument:** `query` (required) — Zendesk search query string
 
 **Default output columns:** `id`, `status`, `priority`, `subject`, `updated_at`
 
+When `--include users` is used, columns change to: `id`, `status`, `priority`, `requester_name`, `assignee_name`, `subject`, `updated_at`.
+
 ```bash
 zd tickets search "status:open priority:urgent" -o json --limit 50
+zd tickets search "status:open" -o json --include users
 ```
 
 ## config

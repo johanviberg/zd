@@ -67,4 +67,3 @@ func (f *NDJSONFormatter) FormatList(w io.Writer, items []interface{}, _ []strin
 	}
 	return nil
 }
-

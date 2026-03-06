@@ -17,6 +17,7 @@ func init() {
 	ticketsSearchCmd.Flags().String("sort-by", "", "Sort field")
 	ticketsSearchCmd.Flags().String("sort-order", "desc", "Sort order: asc or desc")
 	ticketsSearchCmd.Flags().Bool("export", false, "Use export endpoint for >1000 results")
+	ticketsSearchCmd.Flags().String("include", "", "Sideload: users, groups, organizations")
 }
 
 var ticketsSearchCmd = &cobra.Command{
@@ -45,7 +46,7 @@ Combine with spaces (AND) or "OR":
   zd tickets search "created>2024-01-01 status:open"
 
 Full reference: https://support.zendesk.com/hc/en-us/articles/4408886879258`,
-	Args:  cobra.ExactArgs(1),
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := args[0]
 
@@ -59,6 +60,7 @@ Full reference: https://support.zendesk.com/hc/en-us/articles/4408886879258`,
 		sortBy, _ := cmd.Flags().GetString("sort-by")
 		sortOrder, _ := cmd.Flags().GetString("sort-order")
 		export, _ := cmd.Flags().GetBool("export")
+		include, _ := cmd.Flags().GetString("include")
 
 		opts := &types.SearchOptions{
 			Limit:     limit,
@@ -66,6 +68,7 @@ Full reference: https://support.zendesk.com/hc/en-us/articles/4408886879258`,
 			SortBy:    sortBy,
 			SortOrder: sortOrder,
 			Export:    export,
+			Include:   include,
 		}
 
 		page, err := svc.Search(cmd.Context(), query, opts)
@@ -75,12 +78,16 @@ Full reference: https://support.zendesk.com/hc/en-us/articles/4408886879258`,
 
 		formatter := formatterFromCtx(cmd.Context())
 
+		userMap := buildUserMap(page.Users)
 		items := make([]interface{}, len(page.Results))
 		for i, r := range page.Results {
-			items[i] = r.Ticket
+			items[i] = enrichTicket(r.Ticket, userMap)
 		}
 
 		headers := []string{"id", "status", "priority", "subject", "updated_at"}
+		if len(page.Users) > 0 {
+			headers = []string{"id", "status", "priority", "requester_name", "assignee_name", "subject", "updated_at"}
+		}
 		if err := formatter.FormatList(os.Stdout, items, headers); err != nil {
 			return err
 		}

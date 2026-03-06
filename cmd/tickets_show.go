@@ -34,12 +34,19 @@ var ticketsShowCmd = &cobra.Command{
 		include, _ := cmd.Flags().GetString("include")
 		opts := &types.GetTicketOptions{Include: include}
 
-		ticket, err := svc.Get(cmd.Context(), id, opts)
+		result, err := svc.Get(cmd.Context(), id, opts)
 		if err != nil {
 			return err
 		}
 
 		formatter := formatterFromCtx(cmd.Context())
-		return formatter.Format(os.Stdout, ticket)
+
+		var data interface{} = result.Ticket
+		if len(result.Users) > 0 {
+			userMap := buildUserMap(result.Users)
+			data = enrichTicket(result.Ticket, userMap)
+		}
+
+		return formatter.Format(os.Stdout, data)
 	},
 }

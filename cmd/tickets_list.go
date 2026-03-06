@@ -19,6 +19,7 @@ func init() {
 	ticketsListCmd.Flags().String("status", "", "Filter by status")
 	ticketsListCmd.Flags().Int64("assignee", 0, "Filter by assignee ID")
 	ticketsListCmd.Flags().Int64("group", 0, "Filter by group ID")
+	ticketsListCmd.Flags().String("include", "", "Sideload: users, groups, organizations")
 }
 
 var ticketsListCmd = &cobra.Command{
@@ -37,6 +38,7 @@ var ticketsListCmd = &cobra.Command{
 		status, _ := cmd.Flags().GetString("status")
 		assignee, _ := cmd.Flags().GetInt64("assignee")
 		group, _ := cmd.Flags().GetInt64("group")
+		include, _ := cmd.Flags().GetString("include")
 
 		opts := &types.ListTicketsOptions{
 			Limit:     limit,
@@ -46,6 +48,7 @@ var ticketsListCmd = &cobra.Command{
 			Status:    status,
 			Assignee:  assignee,
 			Group:     group,
+			Include:   include,
 		}
 
 		page, err := svc.List(cmd.Context(), opts)
@@ -55,12 +58,16 @@ var ticketsListCmd = &cobra.Command{
 
 		formatter := formatterFromCtx(cmd.Context())
 
+		userMap := buildUserMap(page.Users)
 		items := make([]interface{}, len(page.Tickets))
 		for i, t := range page.Tickets {
-			items[i] = t
+			items[i] = enrichTicket(t, userMap)
 		}
 
 		headers := []string{"id", "status", "priority", "subject", "updated_at"}
+		if len(page.Users) > 0 {
+			headers = []string{"id", "status", "priority", "requester_name", "assignee_name", "subject", "updated_at"}
+		}
 		if err := formatter.FormatList(os.Stdout, items, headers); err != nil {
 			return err
 		}

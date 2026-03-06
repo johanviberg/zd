@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"encoding/json"
+
 	"github.com/spf13/cobra"
 
 	"github.com/johanviberg/zd/internal/api"
@@ -73,4 +75,43 @@ func newSearchService(cmd *cobra.Command) (zendesk.SearchService, error) {
 		return nil, err
 	}
 	return api.NewSearchService(client), nil
+}
+
+func buildUserMap(users []types.User) map[int64]types.User {
+	m := make(map[int64]types.User, len(users))
+	for _, u := range users {
+		m[u.ID] = u
+	}
+	return m
+}
+
+func enrichTicket(ticket interface{}, userMap map[int64]types.User) interface{} {
+	if len(userMap) == 0 {
+		return ticket
+	}
+
+	b, err := json.Marshal(ticket)
+	if err != nil {
+		return ticket
+	}
+
+	var m map[string]interface{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return ticket
+	}
+
+	if rid, ok := m["requester_id"].(float64); ok {
+		if u, found := userMap[int64(rid)]; found {
+			m["requester_name"] = u.Name
+			m["requester_email"] = u.Email
+		}
+	}
+	if aid, ok := m["assignee_id"].(float64); ok {
+		if u, found := userMap[int64(aid)]; found {
+			m["assignee_name"] = u.Name
+			m["assignee_email"] = u.Email
+		}
+	}
+
+	return m
 }

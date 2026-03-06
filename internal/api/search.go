@@ -44,6 +44,10 @@ func (s *SearchService) Search(ctx context.Context, query string, opts *types.Se
 		}
 	}
 
+	if opts != nil && opts.Include != "" {
+		params.Set("include", opts.Include)
+	}
+
 	path += "?" + params.Encode()
 
 	var page types.SearchPage

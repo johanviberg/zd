@@ -46,7 +46,7 @@ var ticketsDeleteCmd = &cobra.Command{
 		yes = yes || globalYes
 
 		if dryRun {
-			ticket, err := svc.Get(cmd.Context(), id, nil)
+			result, err := svc.Get(cmd.Context(), id, nil)
 			if err != nil {
 				return err
 			}
@@ -61,15 +61,15 @@ var ticketsDeleteCmd = &cobra.Command{
 			pendingConfirmationsMu.Unlock()
 
 			formatter := formatterFromCtx(cmd.Context())
-			result := map[string]interface{}{
+			dryRunResult := map[string]interface{}{
 				"action":          "delete",
-				"ticket_id":       ticket.ID,
-				"subject":         ticket.Subject,
-				"status":          ticket.Status,
+				"ticket_id":       result.Ticket.ID,
+				"subject":         result.Ticket.Subject,
+				"status":          result.Ticket.Status,
 				"confirmation_id": confirmation,
 				"message":         fmt.Sprintf("Run 'zd tickets delete %d --confirm %s' to execute", id, confirmation),
 			}
-			return formatter.Format(os.Stdout, result)
+			return formatter.Format(os.Stdout, dryRunResult)
 		}
 
 		if confirmID != "" {

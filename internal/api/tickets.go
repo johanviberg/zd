@@ -49,6 +49,9 @@ func (s *TicketService) List(ctx context.Context, opts *types.ListTicketsOptions
 		if opts.Group > 0 {
 			params.Set("group_id", strconv.FormatInt(opts.Group, 10))
 		}
+		if opts.Include != "" {
+			params.Set("include", opts.Include)
+		}
 	}
 
 	if len(params) > 0 {
@@ -62,20 +65,18 @@ func (s *TicketService) List(ctx context.Context, opts *types.ListTicketsOptions
 	return &page, nil
 }
 
-func (s *TicketService) Get(ctx context.Context, id int64, opts *types.GetTicketOptions) (*types.Ticket, error) {
+func (s *TicketService) Get(ctx context.Context, id int64, opts *types.GetTicketOptions) (*types.TicketResult, error) {
 	path := fmt.Sprintf("/api/v2/tickets/%d", id)
 
 	if opts != nil && opts.Include != "" {
 		path += "?include=" + url.QueryEscape(opts.Include)
 	}
 
-	var result struct {
-		Ticket types.Ticket `json:"ticket"`
-	}
+	var result types.TicketResult
 	if err := s.client.doJSON(ctx, "GET", path, nil, &result); err != nil {
 		return nil, err
 	}
-	return &result.Ticket, nil
+	return &result, nil
 }
 
 func (s *TicketService) Create(ctx context.Context, req *types.CreateTicketRequest) (*types.Ticket, error) {

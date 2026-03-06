@@ -3,21 +3,21 @@ package types
 import "time"
 
 type Ticket struct {
-	ID               int64          `json:"id"`
-	URL              string         `json:"url,omitempty"`
-	Subject          string         `json:"subject"`
-	Description      string         `json:"description,omitempty"`
-	Status           string         `json:"status"`
-	Priority         string         `json:"priority,omitempty"`
-	Type             string         `json:"type,omitempty"`
-	RequesterID      int64          `json:"requester_id,omitempty"`
-	AssigneeID       int64          `json:"assignee_id,omitempty"`
-	GroupID          int64          `json:"group_id,omitempty"`
-	OrganizationID   int64          `json:"organization_id,omitempty"`
-	Tags             []string       `json:"tags,omitempty"`
-	CustomFields     []CustomField  `json:"custom_fields,omitempty"`
-	CreatedAt        time.Time      `json:"created_at"`
-	UpdatedAt        time.Time      `json:"updated_at"`
+	ID             int64         `json:"id"`
+	URL            string        `json:"url,omitempty"`
+	Subject        string        `json:"subject"`
+	Description    string        `json:"description,omitempty"`
+	Status         string        `json:"status"`
+	Priority       string        `json:"priority,omitempty"`
+	Type           string        `json:"type,omitempty"`
+	RequesterID    int64         `json:"requester_id,omitempty"`
+	AssigneeID     int64         `json:"assignee_id,omitempty"`
+	GroupID        int64         `json:"group_id,omitempty"`
+	OrganizationID int64         `json:"organization_id,omitempty"`
+	Tags           []string      `json:"tags,omitempty"`
+	CustomFields   []CustomField `json:"custom_fields,omitempty"`
+	CreatedAt      time.Time     `json:"created_at"`
+	UpdatedAt      time.Time     `json:"updated_at"`
 }
 
 type Comment struct {
@@ -67,6 +67,11 @@ type UpdateTicketRequest struct {
 	SafeUpdate   bool          `json:"safe_update,omitempty"`
 }
 
+type TicketResult struct {
+	Ticket Ticket `json:"ticket"`
+	Users  []User `json:"users,omitempty"`
+}
+
 type ListTicketsOptions struct {
 	Limit     int
 	Cursor    string
@@ -75,6 +80,7 @@ type ListTicketsOptions struct {
 	Status    string
 	Assignee  int64
 	Group     int64
+	Include   string
 }
 
 type GetTicketOptions struct {

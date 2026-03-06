@@ -20,9 +20,9 @@ const (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "zd",
-	Short: "Zendesk CLI - AI agent-friendly command-line interface for Zendesk",
-	Long:  "A CLI tool for interacting with Zendesk's ticketing REST API, designed for both human users and AI agents.",
+	Use:           "zd",
+	Short:         "Zendesk CLI - AI agent-friendly command-line interface for Zendesk",
+	Long:          "A CLI tool for interacting with Zendesk's ticketing REST API, designed for both human users and AI agents.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

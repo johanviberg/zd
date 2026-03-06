@@ -1,0 +1,37 @@
+{
+  "ticket": {
+    "id": 12345,
+    "url": "https://example.zendesk.com/api/v2/tickets/12345.json",
+    "subject": "Test Ticket",
+    "description": "This is a test ticket",
+    "status": "open",
+    "priority": "normal",
+    "type": "incident",
+    "requester_id": 100,
+    "assignee_id": 200,
+    "group_id": 300,
+    "organization_id": 400,
+    "tags": ["test", "cli"],
+    "custom_fields": [
+      {"id": 1001, "value": "custom_value"}
+    ],
+    "created_at": "2025-01-15T10:00:00Z",
+    "updated_at": "2025-01-15T12:00:00Z"
+  },
+  "users": [
+    {
+      "id": 100,
+      "name": "Jane Requester",
+      "email": "jane@example.com",
+      "role": "end-user",
+      "active": true
+    },
+    {
+      "id": 200,
+      "name": "John Agent",
+      "email": "john@example.com",
+      "role": "agent",
+      "active": true
+    }
+  ]
+}
