@@ -1,0 +1,33 @@
+pre-commit:
+  parallel: true
+  commands:
+    build:
+      run: go build ./...
+    fmt-check:
+      run: test -z "$(gofmt -l {staged_files})" || (gofmt -l {staged_files} && echo "Run 'gofmt -w .' to fix formatting" && exit 1)
+      glob: "*.go"
+    vet:
+      run: go vet ./...
+    test:
+      run: go test ./...
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: |
+        msg=$(head -1 {1})
+        if ! echo "$msg" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+'; then
+          echo ""
+          echo "Invalid commit message: $msg"
+          echo ""
+          echo "Must follow Conventional Commits format:"
+          echo "  <type>[optional scope][!]: <description>"
+          echo ""
+          echo "Types: feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert"
+          echo "Examples:"
+          echo "  feat: add ticket export command"
+          echo "  fix(auth): handle expired OAuth tokens"
+          echo "  docs: update README with install instructions"
+          echo "  feat!: remove deprecated search flags"
+          exit 1
+        fi
