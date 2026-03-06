@@ -1,0 +1,9 @@
+# Binary
+/zd
+dist/
+
+# Secrets and config
+.env
+credentials.json
+config.yaml
+*.pem

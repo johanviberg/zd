@@ -1,0 +1,54 @@
+package api
+
+import (
+	"context"
+	"net/url"
+	"strconv"
+
+	"github.com/johanviberg/zd/internal/types"
+)
+
+type SearchService struct {
+	client *Client
+}
+
+func NewSearchService(client *Client) *SearchService {
+	return &SearchService{client: client}
+}
+
+func (s *SearchService) Search(ctx context.Context, query string, opts *types.SearchOptions) (*types.SearchPage, error) {
+	var path string
+	params := url.Values{}
+	params.Set("query", query+" type:ticket")
+
+	if opts != nil && opts.Export {
+		path = "/api/v2/search/export"
+		if opts.Limit > 0 {
+			params.Set("page[size]", strconv.Itoa(opts.Limit))
+		}
+		if opts.Cursor != "" {
+			params.Set("page[after]", opts.Cursor)
+		}
+	} else {
+		path = "/api/v2/search"
+		if opts != nil {
+			if opts.Limit > 0 {
+				params.Set("per_page", strconv.Itoa(opts.Limit))
+			}
+			if opts.SortBy != "" {
+				params.Set("sort_by", opts.SortBy)
+			}
+			if opts.SortOrder != "" {
+				params.Set("sort_order", opts.SortOrder)
+			}
+		}
+	}
+
+	path += "?" + params.Encode()
+
+	var page types.SearchPage
+	if err := s.client.doJSON(ctx, "GET", path, nil, &page); err != nil {
+		return nil, err
+	}
+	return &page, nil
+}

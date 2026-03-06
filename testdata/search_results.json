@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "id": 10,
+      "subject": "Search result 1",
+      "status": "open",
+      "priority": "high",
+      "result_type": "ticket",
+      "created_at": "2025-01-10T10:00:00Z",
+      "updated_at": "2025-01-15T12:00:00Z"
+    },
+    {
+      "id": 20,
+      "subject": "Search result 2",
+      "status": "pending",
+      "priority": "normal",
+      "result_type": "ticket",
+      "created_at": "2025-01-11T10:00:00Z",
+      "updated_at": "2025-01-14T12:00:00Z"
+    }
+  ],
+  "meta": {
+    "has_more": false
+  },
+  "links": {},
+  "count": 2
+}
