@@ -9,9 +9,18 @@ go build -o zd                        # Build binary
 go test ./...                          # Run all tests
 go test ./internal/api/ -run TestName  # Run a single test
 go vet ./...                           # Lint
+gofmt -w .                            # Format code
 ```
 
 No external test dependencies — tests use `net/http/httptest` with JSON fixtures in `testdata/`.
+
+### Commits
+
+Conventional Commits required (enforced by lefthook pre-commit hook):
+```
+<type>[optional scope][!]: <description>
+```
+Types: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
 
 ## Architecture
 
