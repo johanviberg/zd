@@ -107,6 +107,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 
 	case commentsLoadedMsg:
 		m.comments = msg.comments
+		if m.users == nil {
+			m.users = make(map[int64]types.User)
+		}
 		for _, u := range msg.users {
 			m.users[u.ID] = u
 		}

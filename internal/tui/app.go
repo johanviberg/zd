@@ -288,14 +288,22 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		cmds := []tea.Cmd{cmd}
-		// Auto-load first ticket in split view
-		if m.state == splitView && m.showDetail && len(m.list.items) > 0 {
-			id := m.list.items[m.list.cursor].ID
-			m.detail = newDetailModel(m.tickets)
-			m.detail.expectedID = id
-			m.detail.width = m.detailPanelWidth()
-			m.detail.height = m.height
-			cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id))
+		if m.state == splitView && m.showDetail {
+			if len(m.list.items) > 0 {
+				// Auto-load first ticket
+				id := m.list.items[m.list.cursor].ID
+				m.detail = newDetailModel(m.tickets)
+				m.detail.expectedID = id
+				m.detail.width = m.detailPanelWidth()
+				m.detail.height = m.height
+				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id))
+			} else {
+				// Clear detail panel when no tickets
+				m.detail = newDetailModel(m.tickets)
+				m.detail.loading = false
+				m.detail.width = m.detailPanelWidth()
+				m.detail.height = m.height
+			}
 		}
 		return m, tea.Batch(cmds...)
 
@@ -303,14 +311,22 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		cmds := []tea.Cmd{cmd}
-		// Auto-load first result in split view
-		if m.state == splitView && m.showDetail && len(m.list.items) > 0 {
-			id := m.list.items[m.list.cursor].ID
-			m.detail = newDetailModel(m.tickets)
-			m.detail.expectedID = id
-			m.detail.width = m.detailPanelWidth()
-			m.detail.height = m.height
-			cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id))
+		if m.state == splitView && m.showDetail {
+			if len(m.list.items) > 0 {
+				// Auto-load first result
+				id := m.list.items[m.list.cursor].ID
+				m.detail = newDetailModel(m.tickets)
+				m.detail.expectedID = id
+				m.detail.width = m.detailPanelWidth()
+				m.detail.height = m.height
+				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id))
+			} else {
+				// Clear detail panel when no results
+				m.detail = newDetailModel(m.tickets)
+				m.detail.loading = false
+				m.detail.width = m.detailPanelWidth()
+				m.detail.height = m.height
+			}
 		}
 		return m, tea.Batch(cmds...)
 
