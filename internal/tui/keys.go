@@ -19,6 +19,7 @@ type keyMap struct {
 	ManualRefresh key.Binding
 	Open          key.Binding
 	ToggleDetail  key.Binding
+	GoTo          key.Binding
 }
 
 var keys = keyMap{
@@ -85,5 +86,9 @@ var keys = keyMap{
 	ToggleDetail: key.NewBinding(
 		key.WithKeys("v"),
 		key.WithHelp("v", "toggle detail panel"),
+	),
+	GoTo: key.NewBinding(
+		key.WithKeys("g"),
+		key.WithHelp("g", "go to ticket"),
 	),
 }

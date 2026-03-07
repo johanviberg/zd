@@ -45,6 +45,7 @@ type App struct {
 	detail      detailModel
 	actions     actionsModel
 	searchM     searchModel
+	gotoM       gotoModel
 	width       int
 	height      int
 	focus       panelFocus
@@ -64,6 +65,7 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 		detail:     newDetailModel(tickets),
 		actions:    newActionsModel(tickets),
 		searchM:    newSearchModel(),
+		gotoM:      newGotoModel(),
 	}
 }
 
@@ -161,11 +163,13 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		m.searchM, cmd = m.searchM.Update(msg)
 		cmds = append(cmds, cmd)
+		m.gotoM, cmd = m.gotoM.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 
 	case tea.KeyMsg:
 		// Global quit — but not when in input mode
-		if m.actions.mode == actionNone && !m.searchM.active {
+		if m.actions.mode == actionNone && !m.searchM.active && !m.gotoM.active {
 			if key.Matches(msg, keys.Quit) {
 				return m, tea.Quit
 			}
@@ -248,6 +252,15 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, ok := msg.(tea.KeyMsg); ok {
 			var cmd tea.Cmd
 			m.searchM, cmd = m.searchM.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Route to goto overlay
+	if m.gotoM.active {
+		if _, ok := msg.(tea.KeyMsg); ok {
+			var cmd tea.Cmd
+			m.gotoM, cmd = m.gotoM.Update(msg)
 			return m, cmd
 		}
 	}
@@ -403,6 +416,12 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
 		}
 		return m, nil
+
+	case gotoDoneMsg:
+		return m, func() tea.Msg { return showDetailMsg{id: msg.id} }
+
+	case gotoCancelMsg:
+		return m, nil
 	}
 
 	// Route to active view
@@ -434,6 +453,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					var cmd tea.Cmd
 					m.searchM, cmd = m.searchM.open()
 					return m, cmd
+				case key.Matches(msg, keys.GoTo):
+					var cmd tea.Cmd
+					m.gotoM, cmd = m.gotoM.open()
+					return m, cmd
 				case key.Matches(msg, keys.Comment):
 					var cmd tea.Cmd
 					m.actions, cmd = m.actions.openComment(t.ID)
@@ -453,11 +476,15 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			} else {
-				// No items but still handle search/refresh
+				// No items but still handle search/refresh/goto
 				switch {
 				case key.Matches(msg, keys.Search):
 					var cmd tea.Cmd
 					m.searchM, cmd = m.searchM.open()
+					return m, cmd
+				case key.Matches(msg, keys.GoTo):
+					var cmd tea.Cmd
+					m.gotoM, cmd = m.gotoM.open()
 					return m, cmd
 				case key.Matches(msg, keys.Refresh):
 					m.list.autoRefresh = !m.list.autoRefresh
@@ -520,6 +547,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var cmd tea.Cmd
 				m.searchM, cmd = m.searchM.open()
 				return m, cmd
+			case key.Matches(msg, keys.GoTo):
+				var cmd tea.Cmd
+				m.gotoM, cmd = m.gotoM.open()
+				return m, cmd
 			case key.Matches(msg, keys.Comment):
 				if len(m.list.items) > 0 {
 					t := m.list.items[m.list.cursor]
@@ -553,21 +584,28 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case detailView:
 		// Check for action keys before routing to detail
-		if msg, ok := msg.(tea.KeyMsg); ok && m.detail.ticket != nil {
-			switch {
-			case key.Matches(msg, keys.Comment):
+		if msg, ok := msg.(tea.KeyMsg); ok {
+			if key.Matches(msg, keys.GoTo) {
 				var cmd tea.Cmd
-				m.actions, cmd = m.actions.openComment(m.detail.ticket.ID)
+				m.gotoM, cmd = m.gotoM.open()
 				return m, cmd
-			case key.Matches(msg, keys.Status):
-				m.actions = m.actions.openStatus(m.detail.ticket.ID, m.detail.ticket.Status)
-				return m, nil
-			case key.Matches(msg, keys.Priority):
-				m.actions = m.actions.openPriority(m.detail.ticket.ID, m.detail.ticket.Priority)
-				return m, nil
-			case key.Matches(msg, keys.Open):
-				browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", m.subdomain, m.detail.ticket.ID))
-				return m, nil
+			}
+			if m.detail.ticket != nil {
+				switch {
+				case key.Matches(msg, keys.Comment):
+					var cmd tea.Cmd
+					m.actions, cmd = m.actions.openComment(m.detail.ticket.ID)
+					return m, cmd
+				case key.Matches(msg, keys.Status):
+					m.actions = m.actions.openStatus(m.detail.ticket.ID, m.detail.ticket.Status)
+					return m, nil
+				case key.Matches(msg, keys.Priority):
+					m.actions = m.actions.openPriority(m.detail.ticket.ID, m.detail.ticket.Priority)
+					return m, nil
+				case key.Matches(msg, keys.Open):
+					browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", m.subdomain, m.detail.ticket.ID))
+					return m, nil
+				}
 			}
 		}
 		var cmd tea.Cmd
@@ -587,8 +625,19 @@ func (m App) View() string {
 
 	var content string
 
-	// Search bar (shown above list when active)
-	if m.searchM.active {
+	// Goto overlay (shown above list when active)
+	if m.gotoM.active {
+		content = m.gotoM.View() + "\n\n"
+		if m.state == listView || m.state == splitView {
+			if m.state == splitView {
+				content += m.renderSplitView()
+			} else {
+				content += m.list.View()
+			}
+		} else if m.state == detailView {
+			content += m.detail.View()
+		}
+	} else if m.searchM.active {
 		content = m.searchM.View() + "\n\n"
 		if m.state == listView || m.state == splitView {
 			if m.state == splitView {
@@ -665,18 +714,18 @@ func (m App) helpBar() string {
 		if m.list.hasMore {
 			nav += "  n load more"
 		}
-		left = nav + "  r auto-refresh  R refresh  c comment  s status  p priority  v split  q quit"
+		left = nav + "  g goto  r auto-refresh  R refresh  c comment  s status  p priority  v split  q quit"
 	case detailView:
-		left = "esc back  ↑↓ scroll  o open  c comment  s status  p priority  q quit"
+		left = "esc back  ↑↓ scroll  g goto  o open  c comment  s status  p priority  q quit"
 	case splitView:
 		if m.focus == focusList {
-			nav := "↑↓/jk navigate  enter view  tab focus  v hide panel  o open  / search"
+			nav := "↑↓/jk navigate  enter view  tab focus  v hide panel  g goto  o open  / search"
 			if m.list.hasMore {
 				nav += "  n load more"
 			}
 			left = nav + "  c comment  s status  p priority  q quit"
 		} else {
-			left = "↑↓ scroll  tab focus  esc back  o open  c comment  s status  p priority  q quit"
+			left = "↑↓ scroll  tab focus  esc back  g goto  o open  c comment  s status  p priority  q quit"
 		}
 	}
 
