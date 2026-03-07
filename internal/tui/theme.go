@@ -94,6 +94,14 @@ var (
 	newTicketStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "#0E7490", Dark: "#22D3EE"})
+
+	dividerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"})
+
+	focusBorderStyle = lipgloss.NewStyle().
+				BorderLeft(true).
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
 )
 
 func styledStatus(status string) string {

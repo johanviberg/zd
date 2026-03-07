@@ -30,6 +30,10 @@ type showDetailMsg struct {
 
 type countdownTickMsg struct{}
 
+type cursorChangedMsg struct {
+	id int64
+}
+
 type refreshLoadedMsg struct {
 	page *types.TicketPage
 }
@@ -220,10 +224,12 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		case key.Matches(msg, keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
+				return m, m.emitCursorChanged()
 			}
 		case key.Matches(msg, keys.Down):
 			if m.cursor < len(m.items)-1 {
 				m.cursor++
+				return m, m.emitCursorChanged()
 			}
 		case key.Matches(msg, keys.Enter):
 			if len(m.items) > 0 && m.cursor < len(m.items) {
@@ -234,6 +240,14 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m listModel) emitCursorChanged() tea.Cmd {
+	if m.cursor >= 0 && m.cursor < len(m.items) {
+		id := m.items[m.cursor].ID
+		return func() tea.Msg { return cursorChangedMsg{id: id} }
+	}
+	return nil
 }
 
 func (m listModel) View() string {

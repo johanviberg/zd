@@ -19,6 +19,7 @@ type keyMap struct {
 	Refresh       key.Binding
 	ManualRefresh key.Binding
 	Open          key.Binding
+	ToggleDetail  key.Binding
 }
 
 var keys = keyMap{
@@ -85,5 +86,9 @@ var keys = keyMap{
 	Open: key.NewBinding(
 		key.WithKeys("o"),
 		key.WithHelp("o", "open in browser"),
+	),
+	ToggleDetail: key.NewBinding(
+		key.WithKeys("v"),
+		key.WithHelp("v", "toggle detail panel"),
 	),
 }

@@ -28,17 +28,18 @@ type commentsLoadedMsg struct {
 type goBackMsg struct{}
 
 type detailModel struct {
-	tickets  zendesk.TicketService
-	ticket   *types.Ticket
-	users    map[int64]types.User
-	comments []types.Comment
-	viewport viewport.Model
-	loading  bool
-	err      error
-	spinner  spinner.Model
-	width    int
-	height   int
-	ready    bool
+	tickets    zendesk.TicketService
+	ticket     *types.Ticket
+	users      map[int64]types.User
+	comments   []types.Comment
+	viewport   viewport.Model
+	loading    bool
+	err        error
+	spinner    spinner.Model
+	width      int
+	height     int
+	ready      bool
+	expectedID int64
 }
 
 func newDetailModel(tickets zendesk.TicketService) detailModel {
@@ -90,6 +91,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		}
 
 	case ticketLoadedMsg:
+		if m.expectedID != 0 && msg.ticket.ID != m.expectedID {
+			return m, nil
+		}
 		m.loading = false
 		m.ticket = &msg.ticket
 		m.users = make(map[int64]types.User)
@@ -149,6 +153,21 @@ func (m detailModel) View() string {
 	header := subtitleStyle.Render("← esc") + "   " +
 		titleStyle.Render(fmt.Sprintf("Ticket #%d", m.ticket.ID))
 
+	return header + "\n\n" + m.viewport.View()
+}
+
+func (m detailModel) ViewPanel() string {
+	if m.loading {
+		return m.spinner.View() + " Loading ticket..."
+	}
+	if m.err != nil {
+		return errorStyle.Render("Error: " + m.err.Error())
+	}
+	if !m.ready || m.ticket == nil {
+		return subtitleStyle.Render("Select a ticket to view details")
+	}
+
+	header := titleStyle.Render(fmt.Sprintf("Ticket #%d", m.ticket.ID))
 	return header + "\n\n" + m.viewport.View()
 }
 
