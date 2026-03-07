@@ -112,6 +112,27 @@ zd tickets search "status:open priority:high"
 zd tickets delete 12345 --yes
 ```
 
+### Natural language search
+
+`zd tickets search` accepts natural language queries, which are locally translated to Zendesk search syntax (no API key needed). Queries already in Zendesk syntax pass through unchanged.
+
+```bash
+zd tickets search "urgent tickets assigned to jane"
+zd tickets search "open tickets created this week"
+```
+
+### Demo mode
+
+The `--demo` flag lets you explore `zd` without authentication. It generates 100+ synthetic tickets locally.
+
+```bash
+zd tui --demo
+zd tickets list --demo
+zd tickets show 42 --demo
+```
+
+Works with `tickets list`, `tickets show`, `tickets search`, `tickets comments`, and `tui`.
+
 ## Interactive TUI
 
 `zd` includes an optional interactive terminal UI for browsing and managing tickets. Launch it with:
@@ -122,11 +143,17 @@ zd tui
 
 The TUI provides:
 
+- **Split-panel layout** — default side-by-side view with ticket list on the left and detail on the right; auto-collapses to single panel on narrow terminals (<80 cols)
 - **Ticket list** — browse tickets with `j`/`k` or arrow keys, color-coded status and priority
+- **Panel control** — press `tab` to switch focus between panels, `v` to toggle the detail panel
+- **Infinite scroll** — auto-loads the next page when reaching the bottom of the list; or press `n`
 - **Detail view** — press `enter` to view a ticket's details, description, and comments (scroll with arrows)
-- **Search** — press `/` to search using Zendesk search syntax (e.g. `status:open priority:high`), `esc` to clear
+- **Search** — press `/` to search using Zendesk search syntax or natural language (e.g. `status:open priority:high`), `esc` to clear
 - **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, submit with `ctrl+s`
 - **Status/Priority** — press `s` or `p` to change status or priority via a picker
+- **Auto-refresh** — press `r` to toggle auto-refresh (polls every 5 min with countdown), `R` for an immediate refresh; new tickets are highlighted with a star
+- **Open in browser** — press `o` to open the selected ticket in your default browser
+- **Status bar** — shows the authenticated user in the bottom bar
 - **Navigation** — `esc` to go back, `q` to quit
 
 The TUI uses the same authentication and service layer as the CLI commands — no additional setup required.
@@ -242,7 +269,11 @@ You can wrap `zd` as an MCP tool by pointing your server at the binary and using
 | `zd tickets create` | Create a ticket |
 | `zd tickets update <id>` | Update a ticket |
 | `zd tickets delete <id>` | Delete a ticket |
-| `zd tickets search <query>` | Search tickets (supports `--include`) |
+| `zd tickets search <query>` | Search tickets (supports `--include` and natural language) |
+| `zd tickets comments <id>` | List comments on a ticket (supports `--include`) |
+| `zd articles list` | List Help Center articles |
+| `zd articles show <id>` | Show a Help Center article |
+| `zd articles search <query>` | Search Help Center articles |
 | `zd tui` | Interactive terminal UI for managing tickets |
 | `zd config show` | Show current configuration |
 | `zd config set <key> <value>` | Set a configuration value |
@@ -261,6 +292,7 @@ You can wrap `zd` as an MCP tool by pointing your server at the binary and using
 | `--yes` | Auto-confirm prompts |
 | `--subdomain` | Override Zendesk subdomain |
 | `--profile` | Config profile (default: `default`) |
+| `--demo` | Use synthetic demo data (no auth required) |
 | `--debug` | Debug logging to stderr |
 | `--trace-id` | Trace ID attached to API requests |
 
