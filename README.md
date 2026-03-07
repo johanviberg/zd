@@ -112,6 +112,25 @@ zd tickets search "status:open priority:high"
 zd tickets delete 12345 --yes
 ```
 
+## Interactive TUI
+
+`zd` includes an optional interactive terminal UI for browsing and managing tickets. Launch it with:
+
+```bash
+zd tui
+```
+
+The TUI provides:
+
+- **Ticket list** — browse tickets with `j`/`k` or arrow keys, color-coded status and priority
+- **Detail view** — press `enter` to view a ticket's details, description, and comments (scroll with arrows)
+- **Search** — press `/` to search using Zendesk search syntax (e.g. `status:open priority:high`), `esc` to clear
+- **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, submit with `ctrl+s`
+- **Status/Priority** — press `s` or `p` to change status or priority via a picker
+- **Navigation** — `esc` to go back, `q` to quit
+
+The TUI uses the same authentication and service layer as the CLI commands — no additional setup required.
+
 ## Output formats
 
 Use `--output` (or `-o`) to control how results are formatted:
@@ -224,6 +243,7 @@ You can wrap `zd` as an MCP tool by pointing your server at the binary and using
 | `zd tickets update <id>` | Update a ticket |
 | `zd tickets delete <id>` | Delete a ticket |
 | `zd tickets search <query>` | Search tickets (supports `--include`) |
+| `zd tui` | Interactive terminal UI for managing tickets |
 | `zd config show` | Show current configuration |
 | `zd config set <key> <value>` | Set a configuration value |
 | `zd commands` | List all commands with flags (for agent discovery) |
