@@ -202,11 +202,53 @@ Errors always go to stderr. When using `--output json`, errors are also structur
 
 ## Using with AI agents
 
-`zd` is designed to be used by AI agents like Claude Code. The quickest way to get started is to install the bundled agent skill.
+`zd` is designed to be used by AI agents like Claude Code, Claude Desktop, Cursor, and Windsurf.
+
+### MCP server (recommended)
+
+`zd` includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) server that exposes Zendesk operations as tools. No wrapper scripts or extra dependencies — it ships in the same binary.
+
+#### Claude Code
+
+```bash
+claude mcp add zendesk -- zd mcp serve
+```
+
+#### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "zendesk": {
+      "command": "zd",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+#### Cursor / Windsurf
+
+Point at `zd mcp serve` in your editor's MCP settings. The server communicates over stdio.
+
+#### Available tools
+
+| Tool | Description |
+|---|---|
+| `zendesk_list_tickets` | List tickets sorted by update time, with optional status/assignee/group filters |
+| `zendesk_show_ticket` | Show full ticket details with requester and assignee info |
+| `zendesk_search_tickets` | Search using Zendesk query syntax |
+| `zendesk_create_ticket` | Create a ticket with subject, body, priority, and tags |
+| `zendesk_update_ticket` | Update a ticket: add comments (public or internal), change status/priority, manage tags |
+| `zendesk_delete_ticket` | Permanently delete a ticket |
+
+The MCP server uses the same authentication as the CLI — run `zd auth login` first. Demo mode works too: `zd mcp serve --demo`.
 
 ### Agent skill
 
-`zd` ships with an [agent skill](https://skills.sh/) that teaches your AI agent how to authenticate, discover commands, handle errors, and run common workflows. Install it with the [skills CLI](https://github.com/vercel-labs/skills):
+`zd` also ships with an [agent skill](https://skills.sh/) for agents that prefer calling CLI commands directly. Install it with the [skills CLI](https://github.com/vercel-labs/skills):
 
 ```bash
 npx skills add johanviberg/zd
@@ -216,7 +258,7 @@ This copies the skill into your agent's skills directory (e.g. `.claude/skills/`
 
 ### Self-describing commands
 
-Two built-in commands make `zd` discoverable at runtime, even without the skill:
+Two built-in commands make `zd` discoverable at runtime, even without the skill or MCP server:
 
 #### Command discovery
 
@@ -238,25 +280,6 @@ zd schema --command "tickets create"
 
 This returns a schema with property types, required fields, and defaults that an agent can use to construct valid calls.
 
-### Example: Claude Code with CLAUDE.md
-
-Add something like this to your project's `CLAUDE.md` to give Claude Code access to Zendesk:
-
-```markdown
-## Zendesk
-
-Use the `zd` CLI to interact with Zendesk. Auth is already configured.
-
-- Run `zd commands -o json` to discover available commands
-- Run `zd schema --command "<command>"` to get the input schema for a command
-- Always use `--output json` when reading ticket data
-- Use `--non-interactive` to prevent prompts
-```
-
-### Example: MCP tool definition
-
-You can wrap `zd` as an MCP tool by pointing your server at the binary and using `zd schema` to generate input schemas dynamically.
-
 ## Command reference
 
 | Command | Description |
@@ -274,6 +297,7 @@ You can wrap `zd` as an MCP tool by pointing your server at the binary and using
 | `zd articles list` | List Help Center articles |
 | `zd articles show <id>` | Show a Help Center article |
 | `zd articles search <query>` | Search Help Center articles |
+| `zd mcp serve` | Start MCP server on stdio for AI agent integration |
 | `zd tui` | Interactive terminal UI for managing tickets |
 | `zd config show` | Show current configuration |
 | `zd config set <key> <value>` | Set a configuration value |

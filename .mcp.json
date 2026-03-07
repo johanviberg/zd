@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "zendesk": {
+      "type": "stdio",
+      "command": "go",
+      "args": ["run", ".", "mcp", "serve"]
+    }
+  }
+}
