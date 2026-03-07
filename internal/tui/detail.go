@@ -22,6 +22,7 @@ type ticketLoadedMsg struct {
 
 type commentsLoadedMsg struct {
 	comments []types.Comment
+	users    []types.User
 }
 
 type goBackMsg struct{}
@@ -65,11 +66,13 @@ func (m detailModel) loadTicket(id int64) tea.Cmd {
 
 func (m detailModel) loadComments(id int64) tea.Cmd {
 	return func() tea.Msg {
-		comments, err := m.tickets.ListComments(context.Background(), id)
+		page, err := m.tickets.ListComments(context.Background(), id, &types.ListCommentsOptions{
+			Include: "users",
+		})
 		if err != nil {
 			return errMsg{err}
 		}
-		return commentsLoadedMsg{comments: comments}
+		return commentsLoadedMsg{comments: page.Comments, users: page.Users}
 	}
 }
 
@@ -100,6 +103,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 
 	case commentsLoadedMsg:
 		m.comments = msg.comments
+		for _, u := range msg.users {
+			m.users[u.ID] = u
+		}
 		if m.ready {
 			m.viewport.SetContent(m.renderContent())
 		}

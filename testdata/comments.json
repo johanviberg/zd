@@ -1,0 +1,25 @@
+{
+  "comments": [
+    {
+      "id": 1,
+      "body": "First comment",
+      "author_id": 10,
+      "public": true,
+      "created_at": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "body": "Internal note",
+      "author_id": 20,
+      "public": false,
+      "created_at": "2025-01-02T00:00:00Z"
+    }
+  ],
+  "meta": {
+    "has_more": true,
+    "after_cursor": "eyJjb21tZW50cyI6WyIyIl19"
+  },
+  "links": {
+    "next": "https://example.zendesk.com/api/v2/tickets/42/comments?page[after]=eyJjb21tZW50cyI6WyIyIl19"
+  }
+}

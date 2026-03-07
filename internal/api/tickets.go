@@ -126,16 +126,34 @@ func (s *TicketService) Update(ctx context.Context, id int64, req *types.UpdateT
 	return &result.Ticket, nil
 }
 
-func (s *TicketService) ListComments(ctx context.Context, ticketID int64) ([]types.Comment, error) {
+func (s *TicketService) ListComments(ctx context.Context, ticketID int64, opts *types.ListCommentsOptions) (*types.CommentPage, error) {
 	path := fmt.Sprintf("/api/v2/tickets/%d/comments", ticketID)
+	params := url.Values{}
 
-	var result struct {
-		Comments []types.Comment `json:"comments"`
+	if opts != nil {
+		if opts.Limit > 0 {
+			params.Set("page[size]", strconv.Itoa(opts.Limit))
+		}
+		if opts.Cursor != "" {
+			params.Set("page[after]", opts.Cursor)
+		}
+		if opts.SortOrder != "" {
+			params.Set("sort_order", opts.SortOrder)
+		}
+		if opts.Include != "" {
+			params.Set("include", opts.Include)
+		}
 	}
-	if err := s.client.doJSON(ctx, "GET", path, nil, &result); err != nil {
+
+	if len(params) > 0 {
+		path += "?" + params.Encode()
+	}
+
+	var page types.CommentPage
+	if err := s.client.doJSON(ctx, "GET", path, nil, &page); err != nil {
 		return nil, err
 	}
-	return result.Comments, nil
+	return &page, nil
 }
 
 func (s *TicketService) Delete(ctx context.Context, id int64) error {

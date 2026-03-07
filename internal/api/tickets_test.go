@@ -257,6 +257,11 @@ func TestTicketService_Delete(t *testing.T) {
 }
 
 func TestTicketService_ListComments(t *testing.T) {
+	fixture, err := os.ReadFile("../../testdata/comments.json")
+	if err != nil {
+		t.Fatalf("reading fixture: %v", err)
+	}
+
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			t.Errorf("expected GET, got %s", r.Method)
@@ -265,27 +270,92 @@ func TestTicketService_ListComments(t *testing.T) {
 			t.Errorf("expected /api/v2/tickets/42/comments, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"comments":[{"id":1,"body":"First comment","author_id":10,"public":true,"created_at":"2025-01-01T00:00:00Z"},{"id":2,"body":"Internal note","author_id":20,"public":false,"created_at":"2025-01-02T00:00:00Z"}]}`))
+		w.Write(fixture)
 	})
 
 	client := testClient(t, handler)
 	svc := NewTicketService(client)
 
-	comments, err := svc.ListComments(context.Background(), 42)
+	page, err := svc.ListComments(context.Background(), 42, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(comments) != 2 {
-		t.Fatalf("expected 2 comments, got %d", len(comments))
+	if len(page.Comments) != 2 {
+		t.Fatalf("expected 2 comments, got %d", len(page.Comments))
 	}
-	if comments[0].Body != "First comment" {
-		t.Errorf("expected body 'First comment', got %q", comments[0].Body)
+	if page.Comments[0].Body != "First comment" {
+		t.Errorf("expected body 'First comment', got %q", page.Comments[0].Body)
 	}
-	if comments[0].AuthorID != 10 {
-		t.Errorf("expected author_id 10, got %d", comments[0].AuthorID)
+	if page.Comments[0].AuthorID != 10 {
+		t.Errorf("expected author_id 10, got %d", page.Comments[0].AuthorID)
 	}
-	if comments[1].Body != "Internal note" {
-		t.Errorf("expected body 'Internal note', got %q", comments[1].Body)
+	if page.Comments[1].Body != "Internal note" {
+		t.Errorf("expected body 'Internal note', got %q", page.Comments[1].Body)
+	}
+	if !page.Meta.HasMore {
+		t.Error("expected has_more to be true")
+	}
+}
+
+func TestTicketService_ListComments_WithOptions(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("page[size]"); got != "10" {
+			t.Errorf("expected page[size]=10, got %q", got)
+		}
+		if got := r.URL.Query().Get("sort_order"); got != "desc" {
+			t.Errorf("expected sort_order=desc, got %q", got)
+		}
+		if got := r.URL.Query().Get("include"); got != "users" {
+			t.Errorf("expected include=users, got %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"comments":[],"meta":{"has_more":false}}`))
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	_, err := svc.ListComments(context.Background(), 1, &types.ListCommentsOptions{
+		Limit:     10,
+		SortOrder: "desc",
+		Include:   "users",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTicketService_ListComments_WithUsers(t *testing.T) {
+	fixture, err := os.ReadFile("../../testdata/comments_with_users.json")
+	if err != nil {
+		t.Fatalf("reading fixture: %v", err)
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(fixture)
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	page, err := svc.ListComments(context.Background(), 42, &types.ListCommentsOptions{
+		Include: "users",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.Comments) != 2 {
+		t.Fatalf("expected 2 comments, got %d", len(page.Comments))
+	}
+	if len(page.Users) != 2 {
+		t.Fatalf("expected 2 users, got %d", len(page.Users))
+	}
+	if page.Users[0].Name != "Alice Agent" {
+		t.Errorf("expected first user 'Alice Agent', got %q", page.Users[0].Name)
+	}
+	if page.Users[1].Email != "bob@example.com" {
+		t.Errorf("expected second user email 'bob@example.com', got %q", page.Users[1].Email)
 	}
 }
 

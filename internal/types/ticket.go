@@ -21,11 +21,37 @@ type Ticket struct {
 }
 
 type Comment struct {
-	ID        int64     `json:"id,omitempty"`
-	Body      string    `json:"body"`
-	Public    *bool     `json:"public,omitempty"`
-	AuthorID  int64     `json:"author_id,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	ID          int64        `json:"id,omitempty"`
+	Body        string       `json:"body"`
+	HTMLBody    string       `json:"html_body,omitempty"`
+	PlainBody   string       `json:"plain_body,omitempty"`
+	Type        string       `json:"type,omitempty"`
+	Public      *bool        `json:"public,omitempty"`
+	AuthorID    int64        `json:"author_id,omitempty"`
+	Attachments []Attachment `json:"attachments,omitempty"`
+	CreatedAt   time.Time    `json:"created_at,omitempty"`
+}
+
+type Attachment struct {
+	ID          int64  `json:"id"`
+	FileName    string `json:"file_name"`
+	ContentURL  string `json:"content_url"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size"`
+}
+
+type CommentPage struct {
+	Comments []Comment `json:"comments"`
+	Users    []User    `json:"users,omitempty"`
+	Meta     PageMeta  `json:"meta"`
+	Links    PageLinks `json:"links"`
+}
+
+type ListCommentsOptions struct {
+	Limit     int
+	Cursor    string
+	SortOrder string
+	Include   string
 }
 
 type CustomField struct {

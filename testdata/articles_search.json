@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "id": 102,
+      "title": "Password Reset Instructions",
+      "body": "<p>To reset your password...</p>",
+      "author_id": 1,
+      "section_id": 50,
+      "created_at": "2025-01-02T00:00:00Z",
+      "updated_at": "2025-01-14T00:00:00Z",
+      "promoted": false,
+      "draft": false,
+      "html_url": "https://example.zendesk.com/hc/en-us/articles/102",
+      "locale": "en-us"
+    }
+  ],
+  "meta": {
+    "has_more": false
+  },
+  "links": {},
+  "count": 1
+}
