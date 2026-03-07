@@ -27,22 +27,32 @@ type showDetailMsg struct {
 	id int64
 }
 
+type countdownTickMsg struct{}
+
+type refreshLoadedMsg struct {
+	page *types.TicketPage
+}
+
 type listModel struct {
-	tickets     zendesk.TicketService
-	search      zendesk.SearchService
-	items       []types.Ticket
-	users       map[int64]types.User
-	cursor      int
-	width       int
-	height      int
-	loading     bool
-	err         error
-	spinner     spinner.Model
-	hasMore     bool
-	afterCursor string
-	totalCount  int
-	searchQuery string
-	searching   bool
+	tickets          zendesk.TicketService
+	search           zendesk.SearchService
+	items            []types.Ticket
+	users            map[int64]types.User
+	cursor           int
+	width            int
+	height           int
+	loading          bool
+	err              error
+	spinner          spinner.Model
+	hasMore          bool
+	afterCursor      string
+	totalCount       int
+	searchQuery      string
+	searching        bool
+	autoRefresh      bool
+	refreshCountdown int
+	knownTicketIDs   map[int64]bool
+	newTicketIDs     map[int64]bool
 }
 
 func newListModel(tickets zendesk.TicketService, search zendesk.SearchService) listModel {
@@ -93,6 +103,30 @@ func (m listModel) doSearch(query string) tea.Cmd {
 	}
 }
 
+const refreshIntervalSeconds = 300 // 5 minutes
+
+func scheduleCountdownTick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return countdownTickMsg{}
+	})
+}
+
+func (m listModel) loadTicketsForRefresh() tea.Cmd {
+	return func() tea.Msg {
+		opts := &types.ListTicketsOptions{
+			Limit:     50,
+			Sort:      "updated_at",
+			SortOrder: "desc",
+			Include:   "users",
+		}
+		page, err := m.tickets.List(context.Background(), opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		return refreshLoadedMsg{page}
+	}
+}
+
 func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -112,6 +146,11 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		for _, u := range msg.page.Users {
 			m.users[u.ID] = u
 		}
+		m.knownTicketIDs = make(map[int64]bool)
+		for _, t := range msg.page.Tickets {
+			m.knownTicketIDs[t.ID] = true
+		}
+		m.newTicketIDs = make(map[int64]bool)
 		m.cursor = 0
 
 	case searchResultsMsg:
@@ -128,6 +167,36 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 			m.users[u.ID] = u
 		}
 		m.cursor = 0
+
+	case refreshLoadedMsg:
+		newKnown := make(map[int64]bool)
+		for _, t := range msg.page.Tickets {
+			newKnown[t.ID] = true
+			if !m.knownTicketIDs[t.ID] {
+				m.newTicketIDs[t.ID] = true
+			}
+		}
+		m.knownTicketIDs = newKnown
+		m.items = msg.page.Tickets
+		m.hasMore = msg.page.Meta.HasMore
+		m.afterCursor = msg.page.Meta.AfterCursor
+		m.totalCount = len(msg.page.Tickets)
+		if msg.page.Count > 0 {
+			m.totalCount = msg.page.Count
+		}
+		m.users = make(map[int64]types.User)
+		for _, u := range msg.page.Users {
+			m.users[u.ID] = u
+		}
+		// Clamp cursor to valid range
+		if m.cursor >= len(m.items) {
+			m.cursor = len(m.items) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+		m.refreshCountdown = refreshIntervalSeconds
+		return m, scheduleCountdownTick()
 
 	case errMsg:
 		m.loading = false
@@ -184,6 +253,11 @@ func (m listModel) View() string {
 		countLabel = fmt.Sprintf("%d results for %q", m.totalCount, m.searchQuery)
 	}
 	header := titleStyle.Render("Tickets") + "  " + subtitleStyle.Render(countLabel)
+	if m.autoRefresh {
+		mins := m.refreshCountdown / 60
+		secs := m.refreshCountdown % 60
+		header += "  " + newTicketStyle.Render(fmt.Sprintf("↻ auto-refresh (%d:%02d)", mins, secs))
+	}
 	b.WriteString(header + "\n\n")
 
 	// Calculate visible rows
@@ -212,9 +286,13 @@ func (m listModel) View() string {
 }
 
 func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
+	isNew := m.newTicketIDs[t.ID]
+
 	pointer := "  "
 	if selected {
 		pointer = "▸ "
+	} else if isNew {
+		pointer = "★ "
 	}
 
 	id := fmt.Sprintf("#%d", t.ID)
@@ -243,6 +321,9 @@ func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
 
 	if selected {
 		return selectedStyle.Render(row)
+	}
+	if isNew {
+		return newTicketStyle.Render(row)
 	}
 	return row
 }

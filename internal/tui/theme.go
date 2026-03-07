@@ -90,6 +90,10 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "#4338CA", Dark: "#A5B4FC"}).
 			Background(lipgloss.AdaptiveColor{Light: "#EEF2FF", Dark: "#1E1B4B"}).
 			Padding(0, 1)
+
+	newTicketStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "#0E7490", Dark: "#22D3EE"})
 )
 
 func styledStatus(status string) string {

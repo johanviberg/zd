@@ -102,8 +102,29 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle cross-cutting messages
 	switch msg := msg.(type) {
+	case countdownTickMsg:
+		if !m.list.autoRefresh {
+			return m, nil
+		}
+		m.list.refreshCountdown--
+		if m.list.refreshCountdown <= 0 {
+			if m.state == listView && m.list.searchQuery == "" && !m.list.loading {
+				return m, m.list.loadTicketsForRefresh()
+			}
+			// Can't refresh right now, reset and keep ticking
+			m.list.refreshCountdown = refreshIntervalSeconds
+		}
+		return m, scheduleCountdownTick()
+
+	case refreshLoadedMsg:
+		m.list.loading = false
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+
 	case showDetailMsg:
 		m.state = detailView
+		delete(m.list.newTicketIDs, msg.id)
 		m.detail = newDetailModel(m.tickets)
 		m.detail.width = m.width
 		m.detail.height = m.height
@@ -133,6 +154,23 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check for action keys before routing to list
 		if msg, ok := msg.(tea.KeyMsg); ok {
 			switch {
+			case key.Matches(msg, keys.Refresh):
+				m.list.autoRefresh = !m.list.autoRefresh
+				if m.list.autoRefresh {
+					m.list.refreshCountdown = refreshIntervalSeconds
+					return m, scheduleCountdownTick()
+				}
+				m.list.newTicketIDs = make(map[int64]bool)
+				return m, nil
+			case key.Matches(msg, keys.ManualRefresh):
+				if !m.list.loading {
+					m.list.loading = true
+					cmds := []tea.Cmd{m.list.spinner.Tick, m.list.loadTicketsForRefresh()}
+					if m.list.autoRefresh {
+						m.list.refreshCountdown = refreshIntervalSeconds
+					}
+					return m, tea.Batch(cmds...)
+				}
 			case key.Matches(msg, keys.Search):
 				var cmd tea.Cmd
 				m.searchM, cmd = m.searchM.open()
@@ -230,9 +268,9 @@ func (m App) helpBar() string {
 	switch m.state {
 	case listView:
 		if m.list.searchQuery != "" {
-			return "↑↓/jk navigate  enter view  / search  esc clear search  c comment  s status  p priority  q quit"
+			return "↑↓/jk navigate  enter view  / search  esc clear search  r auto-refresh  R refresh  c comment  s status  p priority  q quit"
 		}
-		return "↑↓/jk navigate  enter view  / search  c comment  s status  p priority  q quit"
+		return "↑↓/jk navigate  enter view  / search  r auto-refresh  R refresh  c comment  s status  p priority  q quit"
 	case detailView:
 		return "esc back  ↑↓ scroll  c comment  s status  p priority  q quit"
 	}
