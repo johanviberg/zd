@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -22,7 +24,7 @@ type tokenResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
-func OAuthFlow(subdomain, clientID, clientSecret string) (string, error) {
+func OAuthFlow(subdomain, clientID, clientSecret, scope string) (string, error) {
 	if err := config.ValidateSubdomain(subdomain); err != nil {
 		return "", err
 	}
@@ -42,14 +44,21 @@ func OAuthFlow(subdomain, clientID, clientSecret string) (string, error) {
 		return "", fmt.Errorf("generating state: %w", err)
 	}
 
+	codeVerifier, err := generateCodeVerifier()
+	if err != nil {
+		return "", fmt.Errorf("generating PKCE verifier: %w", err)
+	}
+
 	authURL := fmt.Sprintf("https://%s.zendesk.com/oauth/authorizations/new?%s",
 		subdomain,
 		url.Values{
-			"response_type": {"code"},
-			"client_id":     {clientID},
-			"redirect_uri":  {redirectURI},
-			"scope":         {"read write"},
-			"state":         {state},
+			"response_type":         {"code"},
+			"client_id":             {clientID},
+			"redirect_uri":          {redirectURI},
+			"scope":                 {scope},
+			"state":                 {state},
+			"code_challenge":        {codeChallenge(codeVerifier)},
+			"code_challenge_method": {"S256"},
 		}.Encode(),
 	)
 
@@ -107,7 +116,7 @@ func OAuthFlow(subdomain, clientID, clientSecret string) (string, error) {
 	server.Shutdown(context.Background())
 
 	// Exchange code for token
-	token, err := exchangeCode(subdomain, clientID, clientSecret, code, redirectURI)
+	token, err := exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier)
 	if err != nil {
 		return "", fmt.Errorf("exchanging code: %w", err)
 	}
@@ -115,7 +124,7 @@ func OAuthFlow(subdomain, clientID, clientSecret string) (string, error) {
 	return token, nil
 }
 
-func exchangeCode(subdomain, clientID, clientSecret, code, redirectURI string) (string, error) {
+func exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier string) (string, error) {
 	tokenURL := fmt.Sprintf("https://%s.zendesk.com/oauth/tokens", subdomain)
 
 	data := url.Values{
@@ -124,7 +133,8 @@ func exchangeCode(subdomain, clientID, clientSecret, code, redirectURI string) (
 		"client_id":     {clientID},
 		"client_secret": {clientSecret},
 		"redirect_uri":  {redirectURI},
-		"scope":         {"read write"},
+		"scope":         {scope},
+		"code_verifier": {codeVerifier},
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -148,6 +158,19 @@ func exchangeCode(subdomain, clientID, clientSecret, code, redirectURI string) (
 	}
 
 	return tokenResp.AccessToken, nil
+}
+
+func generateCodeVerifier() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func codeChallenge(verifier string) string {
+	h := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(h[:])
 }
 
 func generateState() (string, error) {

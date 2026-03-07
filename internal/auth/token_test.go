@@ -3,6 +3,7 @@ package auth
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -126,6 +127,105 @@ func TestResolveCredentials_APITokenEnv(t *testing.T) {
 	}
 	if creds.Email != "env@example.com" {
 		t.Errorf("expected email 'env@example.com', got %q", creds.Email)
+	}
+}
+
+func TestLoadCredentials_SymlinkRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	zdDir := filepath.Join(tmpDir, "zd")
+	os.MkdirAll(zdDir, 0700)
+
+	// Create a real credentials file
+	realPath := filepath.Join(tmpDir, "real-credentials.json")
+	os.WriteFile(realPath, []byte(`{"profiles":{"default":{"method":"token","subdomain":"test","email":"a@b.com","api_token":"x"}}}`), 0600)
+
+	// Create a symlink at the credentials path
+	credPath := filepath.Join(zdDir, "credentials.json")
+	os.Symlink(realPath, credPath)
+
+	_, err := LoadCredentials("default")
+	if err == nil {
+		t.Fatal("expected error for symlink, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Errorf("expected symlink error, got: %v", err)
+	}
+}
+
+func TestLoadCredentials_InsecurePermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	zdDir := filepath.Join(tmpDir, "zd")
+	os.MkdirAll(zdDir, 0700)
+
+	credPath := filepath.Join(zdDir, "credentials.json")
+	os.WriteFile(credPath, []byte(`{"profiles":{}}`), 0644)
+
+	_, err := LoadCredentials("default")
+	if err == nil {
+		t.Fatal("expected error for insecure permissions, got nil")
+	}
+	if !strings.Contains(err.Error(), "insecure permissions") {
+		t.Errorf("expected permissions error, got: %v", err)
+	}
+}
+
+func TestSaveCredentials_AtomicWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	creds := &ProfileCredentials{
+		Method:    "token",
+		Subdomain: "testcompany",
+		Email:     "test@example.com",
+		APIToken:  "abc123",
+	}
+
+	if err := SaveCredentials("default", creds); err != nil {
+		t.Fatalf("SaveCredentials: %v", err)
+	}
+
+	// Verify file permissions are 0600
+	path := filepath.Join(tmpDir, "zd", "credentials.json")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+	}
+
+	// Verify no temp files left behind
+	entries, _ := os.ReadDir(filepath.Join(tmpDir, "zd"))
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".credentials-") {
+			t.Errorf("temp file left behind: %s", e.Name())
+		}
+	}
+}
+
+func TestSaveCredentials_SymlinkRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	zdDir := filepath.Join(tmpDir, "zd")
+	os.MkdirAll(zdDir, 0700)
+
+	realPath := filepath.Join(tmpDir, "real-credentials.json")
+	os.WriteFile(realPath, []byte(`{"profiles":{}}`), 0600)
+
+	credPath := filepath.Join(zdDir, "credentials.json")
+	os.Symlink(realPath, credPath)
+
+	err := SaveCredentials("default", &ProfileCredentials{Method: "token"})
+	if err == nil {
+		t.Fatal("expected error for symlink, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Errorf("expected symlink error, got: %v", err)
 	}
 }
 

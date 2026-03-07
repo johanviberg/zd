@@ -19,6 +19,7 @@ func init() {
 	authLoginCmd.Flags().String("subdomain", "", "Zendesk subdomain")
 	authLoginCmd.Flags().String("client-id", "", "OAuth client ID")
 	authLoginCmd.Flags().String("client-secret", "", "OAuth client secret")
+	authLoginCmd.Flags().String("scope", "read write", "OAuth scope")
 }
 
 var authLoginCmd = &cobra.Command{
@@ -90,14 +91,11 @@ func loginWithOAuth(cmd *cobra.Command, profile, subdomain string, cfg *config.C
 		clientID = cfg.OAuthClientID
 	}
 
-	// Fall back to credentials for stored OAuth client ID/secret
-	if clientID == "" || clientSecret == "" {
+	// Fall back to credentials for stored OAuth client ID
+	if clientID == "" {
 		if existingCreds, _ := auth.LoadCredentials(profile); existingCreds != nil {
 			if clientID == "" {
 				clientID = existingCreds.OAuthClientID
-			}
-			if clientSecret == "" {
-				clientSecret = existingCreds.OAuthClientSecret
 			}
 		}
 	}
@@ -106,20 +104,24 @@ func loginWithOAuth(cmd *cobra.Command, profile, subdomain string, cfg *config.C
 		return fmt.Errorf("--client-id is required for first-time OAuth login")
 	}
 	if clientSecret == "" {
-		return fmt.Errorf("--client-secret is required for first-time OAuth login")
+		return fmt.Errorf("--client-secret is required for OAuth login")
 	}
 
-	token, err := auth.OAuthFlow(subdomain, clientID, clientSecret)
+	scope, _ := cmd.Flags().GetString("scope")
+	if scope == "" {
+		return fmt.Errorf("--scope must not be empty")
+	}
+
+	token, err := auth.OAuthFlow(subdomain, clientID, clientSecret, scope)
 	if err != nil {
 		return fmt.Errorf("OAuth flow failed: %w", err)
 	}
 
 	creds := &auth.ProfileCredentials{
-		Method:            "oauth",
-		Subdomain:         subdomain,
-		OAuthToken:        token,
-		OAuthClientID:     clientID,
-		OAuthClientSecret: clientSecret,
+		Method:        "oauth",
+		Subdomain:     subdomain,
+		OAuthToken:    token,
+		OAuthClientID: clientID,
 	}
 
 	if err := auth.SaveCredentials(profile, creds); err != nil {

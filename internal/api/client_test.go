@@ -137,6 +137,95 @@ func TestDoJSON_RateLimited(t *testing.T) {
 	}
 }
 
+func TestRetryTransport_POST_NotRetried(t *testing.T) {
+	attempts := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.WriteHeader(500)
+		w.Write([]byte(`{"error":"InternalError"}`))
+	})
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &RetryTransport{
+				Base:       server.Client().Transport,
+				MaxRetries: 3,
+			},
+		},
+		BaseURL: server.URL,
+	}
+
+	var result interface{}
+	_ = client.doJSON(context.Background(), "POST", "/api/v2/tickets", nil, &result)
+	if attempts != 1 {
+		t.Errorf("expected exactly 1 attempt for POST on 5xx, got %d", attempts)
+	}
+}
+
+func TestRetryTransport_GET_Retried(t *testing.T) {
+	attempts := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts <= 2 {
+			w.WriteHeader(500)
+			w.Write([]byte(`{"error":"InternalError"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ticket":{"id":1}}`))
+	})
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &RetryTransport{
+				Base:       server.Client().Transport,
+				MaxRetries: 3,
+			},
+		},
+		BaseURL: server.URL,
+	}
+
+	var result struct {
+		Ticket struct {
+			ID int64 `json:"id"`
+		} `json:"ticket"`
+	}
+	err := client.doJSON(context.Background(), "GET", "/api/v2/tickets/1", nil, &result)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if attempts != 3 {
+		t.Errorf("expected 3 attempts for GET on 5xx, got %d", attempts)
+	}
+}
+
+func TestSanitizeErrorBody(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"json error", `{"error":"RecordNotFound","description":"Ticket not found"}`, "RecordNotFound: Ticket not found"},
+		{"json error no desc", `{"error":"Unauthorized"}`, "Unauthorized"},
+		{"raw body short", `Something went wrong`, "Something went wrong"},
+		{"raw body truncated", string(make([]byte, 300)), string(make([]byte, 200)) + "…"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeErrorBody([]byte(tt.body))
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestAuthTransport_TokenAuth(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

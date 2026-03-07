@@ -83,7 +83,6 @@ func init() {
 	rootCmd.PersistentFlags().Bool("no-headers", false, "Omit table headers in text mode")
 	rootCmd.PersistentFlags().Bool("non-interactive", false, "Never prompt for input")
 	rootCmd.PersistentFlags().Bool("yes", false, "Auto-confirm prompts")
-	rootCmd.PersistentFlags().Bool("debug", false, "Debug logging to stderr")
 	rootCmd.PersistentFlags().String("trace-id", "", "Trace ID attached to API requests")
 	rootCmd.PersistentFlags().String("subdomain", "", "Override Zendesk subdomain")
 	rootCmd.PersistentFlags().String("profile", "default", "Config profile")

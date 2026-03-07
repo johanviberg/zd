@@ -91,7 +91,7 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) (*
 
 		apiErr := &APIError{
 			StatusCode: resp.StatusCode,
-			Body:       string(respBody),
+			Body:       sanitizeErrorBody(respBody),
 		}
 
 		if resp.StatusCode == 429 {
@@ -131,13 +131,30 @@ type RetryTransport struct {
 	MaxRetries int
 }
 
+func safeMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	}
+	return false
+}
+
 func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
 	for attempt := 0; attempt <= t.MaxRetries; attempt++ {
-		if attempt > 0 && req.GetBody != nil {
-			req.Body, _ = req.GetBody()
+		if attempt > 0 {
+			if !safeMethod(req.Method) {
+				return resp, nil
+			}
+			if req.GetBody != nil {
+				var bodyErr error
+				req.Body, bodyErr = req.GetBody()
+				if bodyErr != nil {
+					return nil, fmt.Errorf("retry: rewinding request body: %w", bodyErr)
+				}
+			}
 		}
 
 		resp, err = t.Base.RoundTrip(req)
@@ -180,4 +197,22 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, err
+}
+
+func sanitizeErrorBody(raw []byte) string {
+	var parsed struct {
+		Error       string `json:"error"`
+		Description string `json:"description"`
+	}
+	if json.Unmarshal(raw, &parsed) == nil && parsed.Error != "" {
+		if parsed.Description != "" {
+			return parsed.Error + ": " + parsed.Description
+		}
+		return parsed.Error
+	}
+	s := string(raw)
+	if len(s) > 200 {
+		s = s[:200] + "…"
+	}
+	return s
 }

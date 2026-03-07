@@ -14,22 +14,69 @@ type Credentials struct {
 }
 
 type ProfileCredentials struct {
-	Method            string `json:"method"`
-	Subdomain         string `json:"subdomain"`
-	Email             string `json:"email,omitempty"`
-	APIToken          string `json:"api_token,omitempty"`
-	OAuthToken        string `json:"oauth_token,omitempty"`
-	OAuthClientID     string `json:"oauth_client_id,omitempty"`
-	OAuthClientSecret string `json:"oauth_client_secret,omitempty"`
+	Method        string `json:"method"`
+	Subdomain     string `json:"subdomain"`
+	Email         string `json:"email,omitempty"`
+	APIToken      string `json:"api_token,omitempty"`
+	OAuthToken    string `json:"oauth_token,omitempty"`
+	OAuthClientID string `json:"oauth_client_id,omitempty"`
+}
+
+func checkCredentialFile(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("credentials file is a symlink: %s", path)
+	}
+	perm := info.Mode().Perm()
+	if perm != 0600 {
+		return fmt.Errorf("credentials file has insecure permissions %o (expected 0600): %s", perm, path)
+	}
+	return nil
+}
+
+func writeCredentialsAtomically(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".credentials-*.json")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0600); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }
 
 func LoadCredentials(profile string) (*ProfileCredentials, error) {
 	path := config.CredentialsPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
+
+	if err := checkCredentialFile(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+		return nil, fmt.Errorf("credentials security check: %w", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil, fmt.Errorf("reading credentials: %w", err)
 	}
 
@@ -51,6 +98,11 @@ func SaveCredentials(profile string, pc *ProfileCredentials) error {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
 
+	// Check existing file for symlinks/permissions (ignore if not exists)
+	if err := checkCredentialFile(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("credentials security check: %w", err)
+	}
+
 	var creds Credentials
 	data, err := os.ReadFile(path)
 	if err == nil {
@@ -68,16 +120,21 @@ func SaveCredentials(profile string, pc *ProfileCredentials) error {
 		return fmt.Errorf("marshaling credentials: %w", err)
 	}
 
-	return os.WriteFile(path, out, 0600)
+	return writeCredentialsAtomically(path, out)
 }
 
 func DeleteCredentials(profile string) error {
 	path := config.CredentialsPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
+
+	if err := checkCredentialFile(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
+		return fmt.Errorf("credentials security check: %w", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return err
 	}
 
@@ -93,7 +150,7 @@ func DeleteCredentials(profile string) error {
 		return err
 	}
 
-	return os.WriteFile(path, out, 0600)
+	return writeCredentialsAtomically(path, out)
 }
 
 func ResolveCredentials(profile string) (*ProfileCredentials, error) {

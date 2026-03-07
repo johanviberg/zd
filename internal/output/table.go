@@ -58,9 +58,14 @@ func (f *TextFormatter) FormatList(w io.Writer, items []interface{}, headers []s
 
 	if len(headers) == 0 {
 		// Derive headers from first item
-		b, _ := json.Marshal(items[0])
+		b, err := json.Marshal(items[0])
+		if err != nil {
+			return fmt.Errorf("formatting: %w", err)
+		}
 		var m map[string]interface{}
-		json.Unmarshal(b, &m)
+		if err := json.Unmarshal(b, &m); err != nil {
+			return fmt.Errorf("formatting: %w", err)
+		}
 		for k := range m {
 			headers = append(headers, k)
 		}
@@ -78,9 +83,14 @@ func (f *TextFormatter) FormatList(w io.Writer, items []interface{}, headers []s
 	}
 
 	for _, item := range items {
-		b, _ := json.Marshal(item)
+		b, err := json.Marshal(item)
+		if err != nil {
+			return fmt.Errorf("formatting: %w", err)
+		}
 		var m map[string]interface{}
-		json.Unmarshal(b, &m)
+		if err := json.Unmarshal(b, &m); err != nil {
+			return fmt.Errorf("formatting: %w", err)
+		}
 
 		vals := make([]string, len(headers))
 		for i, h := range headers {

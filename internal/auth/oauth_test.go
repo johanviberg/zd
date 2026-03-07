@@ -51,6 +51,38 @@ func TestExchangeCode(t *testing.T) {
 	}
 }
 
+func TestGenerateCodeVerifier(t *testing.T) {
+	v, err := generateCodeVerifier()
+	if err != nil {
+		t.Fatalf("generateCodeVerifier: %v", err)
+	}
+	// 32 bytes base64url-encoded = 43 chars
+	if len(v) != 43 {
+		t.Errorf("expected 43 char verifier, got %d", len(v))
+	}
+
+	// Uniqueness
+	v2, _ := generateCodeVerifier()
+	if v == v2 {
+		t.Error("expected unique verifiers")
+	}
+}
+
+func TestCodeChallenge(t *testing.T) {
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := codeChallenge(verifier)
+	if challenge == "" {
+		t.Error("expected non-empty challenge")
+	}
+	if challenge == verifier {
+		t.Error("challenge should differ from verifier")
+	}
+	// S256 challenge is base64url(sha256(verifier)) = 43 chars
+	if len(challenge) != 43 {
+		t.Errorf("expected 43 char challenge, got %d", len(challenge))
+	}
+}
+
 func TestGenerateState(t *testing.T) {
 	states := make(map[string]bool)
 	for i := 0; i < 100; i++ {
