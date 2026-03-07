@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -49,12 +50,16 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Propagate to all child models
 		var cmds []tea.Cmd
-		m.list, _ = m.list.Update(msg)
-		m.detail, _ = m.detail.Update(msg)
-		m.actions, _ = m.actions.Update(msg)
-		m.searchM, _ = m.searchM.Update(msg)
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		cmds = append(cmds, cmd)
+		m.detail, cmd = m.detail.Update(msg)
+		cmds = append(cmds, cmd)
+		m.actions, cmd = m.actions.Update(msg)
+		cmds = append(cmds, cmd)
+		m.searchM, cmd = m.searchM.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 
 	case tea.KeyMsg:
@@ -74,21 +79,25 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Route to active action overlay first
 	if m.actions.mode != actionNone {
-		var cmd tea.Cmd
-		m.actions, cmd = m.actions.Update(msg)
-		if _, ok := msg.(ticketUpdatedMsg); ok {
-			// Refresh the list after an update
-			m.list.loading = true
-			return m, tea.Batch(cmd, m.list.spinner.Tick, m.list.loadTickets())
+		switch msg.(type) {
+		case tea.KeyMsg, spinner.TickMsg, ticketUpdatedMsg, actionErrMsg:
+			var cmd tea.Cmd
+			m.actions, cmd = m.actions.Update(msg)
+			if _, ok := msg.(ticketUpdatedMsg); ok {
+				m.list.loading = true
+				return m, tea.Batch(cmd, m.list.spinner.Tick, m.list.loadTickets())
+			}
+			return m, cmd
 		}
-		return m, cmd
 	}
 
 	// Route to search overlay
 	if m.searchM.active {
-		var cmd tea.Cmd
-		m.searchM, cmd = m.searchM.Update(msg)
-		return m, cmd
+		if _, ok := msg.(tea.KeyMsg); ok {
+			var cmd tea.Cmd
+			m.searchM, cmd = m.searchM.Update(msg)
+			return m, cmd
+		}
 	}
 
 	// Handle cross-cutting messages
@@ -116,10 +125,6 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
 		}
 		return m, nil
-
-	case ticketUpdatedMsg:
-		m.list.loading = true
-		return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
 	}
 
 	// Route to active view
@@ -129,22 +134,26 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg, ok := msg.(tea.KeyMsg); ok {
 			switch {
 			case key.Matches(msg, keys.Search):
-				return m, m.searchM.open()
+				var cmd tea.Cmd
+				m.searchM, cmd = m.searchM.open()
+				return m, cmd
 			case key.Matches(msg, keys.Comment):
 				if len(m.list.items) > 0 {
 					t := m.list.items[m.list.cursor]
-					return m, m.actions.openComment(t.ID)
+					var cmd tea.Cmd
+					m.actions, cmd = m.actions.openComment(t.ID)
+					return m, cmd
 				}
 			case key.Matches(msg, keys.Status):
 				if len(m.list.items) > 0 {
 					t := m.list.items[m.list.cursor]
-					m.actions.openStatus(t.ID, t.Status)
+					m.actions = m.actions.openStatus(t.ID, t.Status)
 					return m, nil
 				}
 			case key.Matches(msg, keys.Priority):
 				if len(m.list.items) > 0 {
 					t := m.list.items[m.list.cursor]
-					m.actions.openPriority(t.ID, t.Priority)
+					m.actions = m.actions.openPriority(t.ID, t.Priority)
 					return m, nil
 				}
 			}
@@ -158,12 +167,14 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg, ok := msg.(tea.KeyMsg); ok && m.detail.ticket != nil {
 			switch {
 			case key.Matches(msg, keys.Comment):
-				return m, m.actions.openComment(m.detail.ticket.ID)
+				var cmd tea.Cmd
+				m.actions, cmd = m.actions.openComment(m.detail.ticket.ID)
+				return m, cmd
 			case key.Matches(msg, keys.Status):
-				m.actions.openStatus(m.detail.ticket.ID, m.detail.ticket.Status)
+				m.actions = m.actions.openStatus(m.detail.ticket.ID, m.detail.ticket.Status)
 				return m, nil
 			case key.Matches(msg, keys.Priority):
-				m.actions.openPriority(m.detail.ticket.ID, m.detail.ticket.Priority)
+				m.actions = m.actions.openPriority(m.detail.ticket.ID, m.detail.ticket.Priority)
 				return m, nil
 			}
 		}
@@ -205,7 +216,7 @@ func (m App) View() string {
 	help := helpBarStyle.Width(m.width).Padding(0, 1).Render(helpText)
 
 	// Layout: content takes remaining space, help bar at bottom
-	contentHeight := m.height - lipgloss.Height(help)
+	contentHeight := m.height - lipgloss.Height(help) - 1
 	styledContent := lipgloss.NewStyle().
 		Height(contentHeight).
 		MaxHeight(contentHeight).
@@ -223,7 +234,7 @@ func (m App) helpBar() string {
 		}
 		return "↑↓/jk navigate  enter view  / search  c comment  s status  p priority  q quit"
 	case detailView:
-		return "esc back  ↑↓ scroll  c comment  s status  p priority"
+		return "esc back  ↑↓ scroll  c comment  s status  p priority  q quit"
 	}
 	return ""
 }

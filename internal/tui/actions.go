@@ -19,6 +19,8 @@ type ticketUpdatedMsg struct {
 	ticket *types.Ticket
 }
 
+type actionErrMsg struct{ err error }
+
 type actionMode int
 
 const (
@@ -65,17 +67,16 @@ func newActionsModel(tickets zendesk.TicketService) actionsModel {
 	}
 }
 
-func (m *actionsModel) openComment(ticketID int64) tea.Cmd {
+func (m actionsModel) openComment(ticketID int64) (actionsModel, tea.Cmd) {
 	m.ticketID = ticketID
 	m.mode = actionComment
 	m.isPublic = false
 	m.err = nil
 	m.textarea.Reset()
-	m.textarea.Focus()
-	return m.textarea.Focus()
+	return m, m.textarea.Focus()
 }
 
-func (m *actionsModel) openStatus(ticketID int64, currentStatus string) {
+func (m actionsModel) openStatus(ticketID int64, currentStatus string) actionsModel {
 	m.ticketID = ticketID
 	m.mode = actionStatus
 	m.current = currentStatus
@@ -87,9 +88,10 @@ func (m *actionsModel) openStatus(ticketID int64, currentStatus string) {
 			break
 		}
 	}
+	return m
 }
 
-func (m *actionsModel) openPriority(ticketID int64, currentPriority string) {
+func (m actionsModel) openPriority(ticketID int64, currentPriority string) actionsModel {
 	m.ticketID = ticketID
 	m.mode = actionPriority
 	m.current = currentPriority
@@ -101,11 +103,13 @@ func (m *actionsModel) openPriority(ticketID int64, currentPriority string) {
 			break
 		}
 	}
+	return m
 }
 
-func (m *actionsModel) close() {
+func (m actionsModel) close() actionsModel {
 	m.mode = actionNone
 	m.textarea.Blur()
+	return m
 }
 
 func (m actionsModel) submitComment() tea.Cmd {
@@ -122,7 +126,7 @@ func (m actionsModel) submitComment() tea.Cmd {
 			},
 		})
 		if err != nil {
-			return errMsg{err}
+			return actionErrMsg{err}
 		}
 		return ticketUpdatedMsg{ticket: ticket}
 	}
@@ -137,7 +141,7 @@ func (m actionsModel) submitStatus() tea.Cmd {
 			Status: status,
 		})
 		if err != nil {
-			return errMsg{err}
+			return actionErrMsg{err}
 		}
 		return ticketUpdatedMsg{ticket: ticket}
 	}
@@ -152,7 +156,7 @@ func (m actionsModel) submitPriority() tea.Cmd {
 			Priority: priority,
 		})
 		if err != nil {
-			return errMsg{err}
+			return actionErrMsg{err}
 		}
 		return ticketUpdatedMsg{ticket: ticket}
 	}
@@ -177,10 +181,10 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 
 	case ticketUpdatedMsg:
 		m.submitting = false
-		m.close()
+		m = m.close()
 		return m, nil
 
-	case errMsg:
+	case actionErrMsg:
 		m.submitting = false
 		m.err = msg.err
 		return m, nil
@@ -194,7 +198,7 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 		case actionComment:
 			switch {
 			case key.Matches(msg, keys.Back):
-				m.close()
+				m = m.close()
 				return m, nil
 			case key.Matches(msg, keys.Submit):
 				if m.textarea.Value() != "" {
@@ -213,7 +217,7 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 		case actionStatus:
 			switch {
 			case key.Matches(msg, keys.Back):
-				m.close()
+				m = m.close()
 				return m, nil
 			case key.Matches(msg, keys.Up):
 				if m.statusIdx > 0 {
@@ -231,7 +235,7 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 		case actionPriority:
 			switch {
 			case key.Matches(msg, keys.Back):
-				m.close()
+				m = m.close()
 				return m, nil
 			case key.Matches(msg, keys.Up):
 				if m.prioIdx > 0 {

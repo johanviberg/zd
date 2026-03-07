@@ -256,6 +256,39 @@ func TestTicketService_Delete(t *testing.T) {
 	}
 }
 
+func TestTicketService_ListComments(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v2/tickets/42/comments" {
+			t.Errorf("expected /api/v2/tickets/42/comments, got %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"comments":[{"id":1,"body":"First comment","author_id":10,"public":true,"created_at":"2025-01-01T00:00:00Z"},{"id":2,"body":"Internal note","author_id":20,"public":false,"created_at":"2025-01-02T00:00:00Z"}]}`))
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	comments, err := svc.ListComments(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(comments) != 2 {
+		t.Fatalf("expected 2 comments, got %d", len(comments))
+	}
+	if comments[0].Body != "First comment" {
+		t.Errorf("expected body 'First comment', got %q", comments[0].Body)
+	}
+	if comments[0].AuthorID != 10 {
+		t.Errorf("expected author_id 10, got %d", comments[0].AuthorID)
+	}
+	if comments[1].Body != "Internal note" {
+		t.Errorf("expected body 'Internal note', got %q", comments[1].Body)
+	}
+}
+
 func TestTicketService_List_Pagination(t *testing.T) {
 	page := 0
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

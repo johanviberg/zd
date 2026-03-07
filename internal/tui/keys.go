@@ -12,7 +12,6 @@ type keyMap struct {
 	Comment  key.Binding
 	Status   key.Binding
 	Priority key.Binding
-	Help     key.Binding
 	Submit   key.Binding
 	Tab      key.Binding
 	NextPage key.Binding
@@ -55,10 +54,6 @@ var keys = keyMap{
 	Priority: key.NewBinding(
 		key.WithKeys("p"),
 		key.WithHelp("p", "priority"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "help"),
 	),
 	Submit: key.NewBinding(
 		key.WithKeys("ctrl+s"),

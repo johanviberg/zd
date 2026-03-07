@@ -80,7 +80,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		m.height = msg.Height
 		if m.ready {
 			m.viewport.Width = msg.Width - 4
-			m.viewport.Height = msg.Height - 4
+			m.viewport.Height = msg.Height - 6
 			if m.ticket != nil {
 				m.viewport.SetContent(m.renderContent())
 			}
@@ -93,7 +93,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		for _, u := range msg.users {
 			m.users[u.ID] = u
 		}
-		m.viewport = viewport.New(m.width-4, m.height-4)
+		m.viewport = viewport.New(m.width-4, m.height-6)
 		m.viewport.SetContent(m.renderContent())
 		m.ready = true
 		return m, m.loadComments(msg.ticket.ID)

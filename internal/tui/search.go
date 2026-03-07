@@ -26,15 +26,16 @@ func newSearchModel() searchModel {
 	return searchModel{input: ti}
 }
 
-func (m *searchModel) open() tea.Cmd {
+func (m searchModel) open() (searchModel, tea.Cmd) {
 	m.active = true
 	m.input.Reset()
-	return m.input.Focus()
+	return m, m.input.Focus()
 }
 
-func (m *searchModel) close() {
+func (m searchModel) close() searchModel {
 	m.active = false
 	m.input.Blur()
+	return m
 }
 
 func (m searchModel) Update(msg tea.Msg) (searchModel, tea.Cmd) {
@@ -50,11 +51,11 @@ func (m searchModel) Update(msg tea.Msg) (searchModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keys.Back):
-			m.close()
+			m = m.close()
 			return m, func() tea.Msg { return searchCancelMsg{} }
 		case key.Matches(msg, keys.Enter):
 			query := m.input.Value()
-			m.close()
+			m = m.close()
 			if query != "" {
 				return m, func() tea.Msg { return searchDoneMsg{query: query} }
 			}

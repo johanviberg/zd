@@ -155,7 +155,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				m.cursor++
 			}
 		case key.Matches(msg, keys.Enter):
-			if len(m.items) > 0 {
+			if len(m.items) > 0 && m.cursor < len(m.items) {
 				return m, func() tea.Msg {
 					return showDetailMsg{id: m.items[m.cursor].ID}
 				}
@@ -228,8 +228,9 @@ func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
 	if maxSubject < 20 {
 		maxSubject = 20
 	}
-	if len(subject) > maxSubject {
-		subject = subject[:maxSubject-1] + "…"
+	runes := []rune(subject)
+	if len(runes) > maxSubject {
+		subject = string(runes[:maxSubject-1]) + "…"
 	}
 
 	idCol := lipgloss.NewStyle().Width(7).Render(id)
@@ -247,7 +248,13 @@ func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
 }
 
 func relativeTime(t time.Time) string {
+	if t.IsZero() {
+		return "n/a"
+	}
 	d := time.Since(t)
+	if d < 0 {
+		return "just now"
+	}
 	switch {
 	case d < time.Minute:
 		return "just now"
@@ -260,8 +267,14 @@ func relativeTime(t time.Time) string {
 	case d < 30*24*time.Hour:
 		days := int(d.Hours() / 24)
 		return fmt.Sprintf("%dd ago", days)
-	default:
+	case d < 365*24*time.Hour:
 		months := int(d.Hours() / 24 / 30)
+		if months == 0 {
+			months = 1
+		}
 		return fmt.Sprintf("%dmo ago", months)
+	default:
+		years := int(d.Hours() / 24 / 365)
+		return fmt.Sprintf("%dy ago", years)
 	}
 }

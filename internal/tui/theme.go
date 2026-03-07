@@ -95,7 +95,7 @@ var (
 func styledStatus(status string) string {
 	color, ok := statusColors[status]
 	if !ok {
-		color = statusColors["open"]
+		return dimStyle.Render("? " + status)
 	}
 	icon, ok := statusIcons[status]
 	if !ok {
