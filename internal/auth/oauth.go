@@ -10,11 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/johanviberg/zd/internal/browser"
 	"github.com/johanviberg/zd/internal/config"
 )
 
@@ -94,7 +93,7 @@ func OAuthFlow(subdomain, clientID, clientSecret string) (string, error) {
 
 	fmt.Printf("Opening browser for authorization...\n")
 	fmt.Printf("If the browser doesn't open, visit:\n%s\n\n", authURL)
-	openBrowser(authURL)
+	browser.Open(authURL)
 
 	var code string
 	select {
@@ -157,22 +156,4 @@ func generateState() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
-}
-
-func openBrowser(url string) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	}
-	if cmd != nil {
-		cmd.Env = []string{}
-		if err := cmd.Start(); err != nil {
-			fmt.Printf("Warning: could not open browser: %v\n", err)
-		}
-	}
 }

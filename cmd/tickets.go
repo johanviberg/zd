@@ -77,6 +77,34 @@ func newSearchService(cmd *cobra.Command) (zendesk.SearchService, error) {
 	return api.NewSearchService(client), nil
 }
 
+func newUserService(cmd *cobra.Command) (zendesk.UserService, error) {
+	cfg := configFromCtx(cmd.Context())
+	profile, _ := cmd.Flags().GetString("profile")
+	traceID, _ := cmd.Flags().GetString("trace-id")
+
+	creds, err := auth.ResolveCredentials(profile)
+	if err != nil {
+		return nil, err
+	}
+	if creds == nil {
+		return nil, types.NewAuthError("not authenticated — run 'zd auth login' first")
+	}
+
+	subdomain := cfg.Subdomain
+	if subdomain == "" {
+		subdomain = creds.Subdomain
+	}
+	if subdomain == "" {
+		return nil, types.NewArgError("subdomain is required")
+	}
+
+	client, err := api.NewClient(subdomain, creds, traceID)
+	if err != nil {
+		return nil, err
+	}
+	return api.NewUserService(client), nil
+}
+
 func buildUserMap(users []types.User) map[int64]types.User {
 	m := make(map[int64]types.User, len(users))
 	for _, u := range users {

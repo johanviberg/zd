@@ -18,6 +18,7 @@ type keyMap struct {
 	PrevPage      key.Binding
 	Refresh       key.Binding
 	ManualRefresh key.Binding
+	Open          key.Binding
 }
 
 var keys = keyMap{
@@ -80,5 +81,9 @@ var keys = keyMap{
 	ManualRefresh: key.NewBinding(
 		key.WithKeys("R"),
 		key.WithHelp("R", "refresh"),
+	),
+	Open: key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", "open in browser"),
 	),
 }

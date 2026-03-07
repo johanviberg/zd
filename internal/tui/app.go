@@ -1,11 +1,17 @@
 package tui
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/johanviberg/zd/internal/browser"
+	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
 )
 
@@ -18,31 +24,51 @@ const (
 	detailView
 )
 
+type currentUserMsg struct{ user *types.User }
+
 type App struct {
-	tickets zendesk.TicketService
-	search  zendesk.SearchService
-	state   viewState
-	list    listModel
-	detail  detailModel
-	actions actionsModel
-	searchM searchModel
-	width   int
-	height  int
+	tickets     zendesk.TicketService
+	search      zendesk.SearchService
+	users       zendesk.UserService
+	subdomain   string
+	currentUser *types.User
+	state       viewState
+	list        listModel
+	detail      detailModel
+	actions     actionsModel
+	searchM     searchModel
+	width       int
+	height      int
 }
 
-func NewApp(tickets zendesk.TicketService, search zendesk.SearchService) App {
+func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users zendesk.UserService, subdomain string) App {
 	return App{
-		tickets: tickets,
-		search:  search,
-		list:    newListModel(tickets, search),
-		detail:  newDetailModel(tickets),
-		actions: newActionsModel(tickets),
-		searchM: newSearchModel(),
+		tickets:   tickets,
+		search:    search,
+		users:     users,
+		subdomain: subdomain,
+		list:      newListModel(tickets, search),
+		detail:    newDetailModel(tickets),
+		actions:   newActionsModel(tickets),
+		searchM:   newSearchModel(),
 	}
 }
 
 func (m App) Init() tea.Cmd {
-	return m.list.Init()
+	return tea.Batch(m.list.Init(), m.fetchCurrentUser())
+}
+
+func (m App) fetchCurrentUser() tea.Cmd {
+	return func() tea.Msg {
+		if m.users == nil {
+			return currentUserMsg{}
+		}
+		user, err := m.users.GetMe(context.Background())
+		if err != nil {
+			return currentUserMsg{}
+		}
+		return currentUserMsg{user: user}
+	}
 }
 
 func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -102,6 +128,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle cross-cutting messages
 	switch msg := msg.(type) {
+	case currentUserMsg:
+		m.currentUser = msg.user
+		return m, nil
+
 	case countdownTickMsg:
 		if !m.list.autoRefresh {
 			return m, nil
@@ -194,6 +224,12 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.actions = m.actions.openPriority(t.ID, t.Priority)
 					return m, nil
 				}
+			case key.Matches(msg, keys.Open):
+				if len(m.list.items) > 0 {
+					t := m.list.items[m.list.cursor]
+					browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", m.subdomain, t.ID))
+					return m, nil
+				}
 			}
 		}
 		var cmd tea.Cmd
@@ -213,6 +249,9 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case key.Matches(msg, keys.Priority):
 				m.actions = m.actions.openPriority(m.detail.ticket.ID, m.detail.ticket.Priority)
+				return m, nil
+			case key.Matches(msg, keys.Open):
+				browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", m.subdomain, m.detail.ticket.ID))
 				return m, nil
 			}
 		}
@@ -265,14 +304,34 @@ func (m App) View() string {
 }
 
 func (m App) helpBar() string {
+	var left string
 	switch m.state {
 	case listView:
 		if m.list.searchQuery != "" {
-			return "↑↓/jk navigate  enter view  / search  esc clear search  r auto-refresh  R refresh  c comment  s status  p priority  q quit"
+			left = "↑↓/jk navigate  enter view  o open  / search  esc clear search  r auto-refresh  R refresh  c comment  s status  p priority  q quit"
+		} else {
+			left = "↑↓/jk navigate  enter view  o open  / search  r auto-refresh  R refresh  c comment  s status  p priority  q quit"
 		}
-		return "↑↓/jk navigate  enter view  / search  r auto-refresh  R refresh  c comment  s status  p priority  q quit"
 	case detailView:
-		return "esc back  ↑↓ scroll  c comment  s status  p priority  q quit"
+		left = "esc back  ↑↓ scroll  o open  c comment  s status  p priority  q quit"
 	}
-	return ""
+
+	if m.currentUser == nil || m.width == 0 {
+		return left
+	}
+
+	userInfo := m.currentUser.Email
+	if userInfo == "" {
+		userInfo = m.currentUser.Name
+	}
+	if userInfo == "" {
+		return left
+	}
+
+	// Right-align user info with padding
+	gap := m.width - lipgloss.Width(left) - lipgloss.Width(userInfo) - 2 // -2 for padding
+	if gap < 2 {
+		return left
+	}
+	return left + strings.Repeat(" ", gap) + userInfo
 }
