@@ -14,6 +14,7 @@ type TicketService interface {
 	Create(ctx context.Context, req *types.CreateTicketRequest) (*types.Ticket, error)
 	Update(ctx context.Context, id int64, req *types.UpdateTicketRequest) (*types.Ticket, error)
 	Delete(ctx context.Context, id int64) error
+	ListComments(ctx context.Context, ticketID int64) ([]types.Comment, error)
 }
 
 type SearchService interface {

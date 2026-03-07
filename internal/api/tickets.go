@@ -126,6 +126,18 @@ func (s *TicketService) Update(ctx context.Context, id int64, req *types.UpdateT
 	return &result.Ticket, nil
 }
 
+func (s *TicketService) ListComments(ctx context.Context, ticketID int64) ([]types.Comment, error) {
+	path := fmt.Sprintf("/api/v2/tickets/%d/comments", ticketID)
+
+	var result struct {
+		Comments []types.Comment `json:"comments"`
+	}
+	if err := s.client.doJSON(ctx, "GET", path, nil, &result); err != nil {
+		return nil, err
+	}
+	return result.Comments, nil
+}
+
 func (s *TicketService) Delete(ctx context.Context, id int64) error {
 	path := fmt.Sprintf("/api/v2/tickets/%d", id)
 	resp, err := s.client.do(ctx, "DELETE", path, nil)
