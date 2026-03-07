@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/johanviberg/zd/internal/nlq"
 	"github.com/johanviberg/zd/internal/types"
 )
 
@@ -45,10 +46,17 @@ Combine with spaces (AND) or "OR":
   zd tickets search "tags:vip assignee:jane"
   zd tickets search "created>2024-01-01 status:open"
 
-Full reference: https://support.zendesk.com/hc/en-us/articles/4408886879258`,
+Full reference: https://support.zendesk.com/hc/en-us/articles/4408886879258
+
+Natural language is also supported:
+  zd tickets search "show all open tickets"
+  zd tickets search "urgent tickets assigned to jane"
+  zd tickets search "high priority incidents"
+  zd tickets search "unresolved tickets from billing"
+  zd tickets search "tickets created this week"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		query := args[0]
+		query := nlq.Translate(args[0])
 
 		svc, err := newSearchService(cmd)
 		if err != nil {

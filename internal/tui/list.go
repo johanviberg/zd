@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/johanviberg/zd/internal/nlq"
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
 )
@@ -88,6 +89,7 @@ func (m listModel) loadTickets() tea.Cmd {
 }
 
 func (m listModel) doSearch(query string) tea.Cmd {
+	query = nlq.Translate(query)
 	return func() tea.Msg {
 		opts := &types.SearchOptions{
 			Limit:     50,

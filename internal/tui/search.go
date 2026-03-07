@@ -20,7 +20,7 @@ type searchModel struct {
 
 func newSearchModel() searchModel {
 	ti := textinput.New()
-	ti.Placeholder = "status:open priority:high tags:billing"
+	ti.Placeholder = "open tickets or status:open priority:high"
 	ti.Prompt = "> "
 	ti.CharLimit = 256
 	return searchModel{input: ti}
