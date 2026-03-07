@@ -7,6 +7,7 @@ import (
 
 	"github.com/johanviberg/zd/internal/api"
 	"github.com/johanviberg/zd/internal/auth"
+	"github.com/johanviberg/zd/internal/demo"
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
 )
@@ -22,6 +23,9 @@ var ticketsCmd = &cobra.Command{
 }
 
 func newTicketService(cmd *cobra.Command) (zendesk.TicketService, error) {
+	if store := demoStoreFromCtx(cmd.Context()); store != nil {
+		return demo.NewTicketService(store), nil
+	}
 	cfg := configFromCtx(cmd.Context())
 	profile, _ := cmd.Flags().GetString("profile")
 	traceID, _ := cmd.Flags().GetString("trace-id")
@@ -50,6 +54,9 @@ func newTicketService(cmd *cobra.Command) (zendesk.TicketService, error) {
 }
 
 func newSearchService(cmd *cobra.Command) (zendesk.SearchService, error) {
+	if store := demoStoreFromCtx(cmd.Context()); store != nil {
+		return demo.NewSearchService(store), nil
+	}
 	cfg := configFromCtx(cmd.Context())
 	profile, _ := cmd.Flags().GetString("profile")
 	traceID, _ := cmd.Flags().GetString("trace-id")
@@ -78,6 +85,9 @@ func newSearchService(cmd *cobra.Command) (zendesk.SearchService, error) {
 }
 
 func newUserService(cmd *cobra.Command) (zendesk.UserService, error) {
+	if store := demoStoreFromCtx(cmd.Context()); store != nil {
+		return demo.NewUserService(store), nil
+	}
 	cfg := configFromCtx(cmd.Context())
 	profile, _ := cmd.Flags().GetString("profile")
 	traceID, _ := cmd.Flags().GetString("trace-id")

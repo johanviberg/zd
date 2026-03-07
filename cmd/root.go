@@ -9,6 +9,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/johanviberg/zd/internal/config"
+	"github.com/johanviberg/zd/internal/demo"
 	"github.com/johanviberg/zd/internal/output"
 )
 
@@ -17,6 +18,7 @@ type contextKey string
 const (
 	ctxKeyConfig    contextKey = "config"
 	ctxKeyFormatter contextKey = "formatter"
+	ctxKeyDemoStore contextKey = "demoStore"
 )
 
 var rootCmd = &cobra.Command{
@@ -37,6 +39,13 @@ var rootCmd = &cobra.Command{
 			cfg.Subdomain = subdomain
 		}
 
+		demoMode, _ := cmd.Flags().GetBool("demo")
+		if demoMode {
+			if cfg.Subdomain == "" {
+				cfg.Subdomain = demo.DemoSubdomain
+			}
+		}
+
 		outputFmt, _ := cmd.Flags().GetString("output")
 		fields, _ := cmd.Flags().GetStringSlice("fields")
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
@@ -49,6 +58,9 @@ var rootCmd = &cobra.Command{
 		ctx := cmd.Context()
 		ctx = context.WithValue(ctx, ctxKeyConfig, cfg)
 		ctx = context.WithValue(ctx, ctxKeyFormatter, formatter)
+		if demoMode {
+			ctx = context.WithValue(ctx, ctxKeyDemoStore, demo.NewStore())
+		}
 		cmd.SetContext(ctx)
 		return nil
 	},
@@ -75,6 +87,7 @@ func init() {
 	rootCmd.PersistentFlags().String("trace-id", "", "Trace ID attached to API requests")
 	rootCmd.PersistentFlags().String("subdomain", "", "Override Zendesk subdomain")
 	rootCmd.PersistentFlags().String("profile", "default", "Config profile")
+	rootCmd.PersistentFlags().Bool("demo", false, "Use synthetic demo data (no auth required)")
 }
 
 func isNonInteractive(cmd *cobra.Command) bool {
@@ -90,6 +103,11 @@ func configFromCtx(ctx context.Context) *config.Config {
 	if !ok || v == nil {
 		panic("configFromCtx called before PersistentPreRunE — this is a bug")
 	}
+	return v
+}
+
+func demoStoreFromCtx(ctx context.Context) *demo.Store {
+	v, _ := ctx.Value(ctxKeyDemoStore).(*demo.Store)
 	return v
 }
 
