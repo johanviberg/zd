@@ -51,6 +51,9 @@ func TestSearchService_SearchExport(t *testing.T) {
 		if !strings.HasPrefix(r.URL.Path, "/api/v2/search/export") {
 			t.Errorf("expected /api/v2/search/export, got %s", r.URL.Path)
 		}
+		if ft := r.URL.Query().Get("filter[type]"); ft != "ticket" {
+			t.Errorf("expected filter[type]=ticket, got %q", ft)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"results":[],"meta":{"has_more":false},"count":0}`))
 	})

@@ -202,6 +202,33 @@ func TestTranslateWithTime(t *testing.T) {
 			expected: "created>2026-02-05",
 		},
 
+		// --- Hour phrases (fixed now = 2026-03-07T12:00:00Z) ---
+		{
+			name:     "past hour",
+			input:    "tickets created in the past hour",
+			expected: "created>2026-03-07T11:00:00Z",
+		},
+		{
+			name:     "past 3 hours",
+			input:    "past 3 hours",
+			expected: "created>2026-03-07T09:00:00Z",
+		},
+		{
+			name:     "last 1 hour",
+			input:    "last 1 hour",
+			expected: "created>2026-03-07T11:00:00Z",
+		},
+		{
+			name:     "open tickets last 6 hours",
+			input:    "open tickets last 6 hours",
+			expected: "created>2026-03-07T06:00:00Z status:open",
+		},
+		{
+			name:     "last hour bare",
+			input:    "last hour",
+			expected: "created>2026-03-07T11:00:00Z",
+		},
+
 		// --- Fallback / passthrough for unrecognized input ---
 		{
 			name:     "unrecognized input passes through",

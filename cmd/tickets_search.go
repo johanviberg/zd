@@ -53,7 +53,8 @@ Natural language is also supported:
   zd tickets search "urgent tickets assigned to jane"
   zd tickets search "high priority incidents"
   zd tickets search "unresolved tickets from billing"
-  zd tickets search "tickets created this week"`,
+  zd tickets search "tickets created this week"
+  zd tickets search "open tickets past 3 hours"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := nlq.Translate(args[0])

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/johanviberg/zd/internal/types"
 )
@@ -23,6 +24,7 @@ func (s *SearchService) Search(ctx context.Context, query string, opts *types.Se
 
 	if opts != nil && opts.Export {
 		path = "/api/v2/search/export"
+		params.Set("filter[type]", "ticket")
 		if opts.Limit > 0 {
 			params.Set("page[size]", strconv.Itoa(opts.Limit))
 		}
@@ -48,7 +50,12 @@ func (s *SearchService) Search(ctx context.Context, query string, opts *types.Se
 		params.Set("include", opts.Include)
 	}
 
-	path += "?" + params.Encode()
+	// Zendesk expects literal brackets in filter[type] and page[size]/page[after].
+	// url.Values.Encode() percent-encodes them, so restore the brackets.
+	encoded := params.Encode()
+	encoded = strings.ReplaceAll(encoded, "%5B", "[")
+	encoded = strings.ReplaceAll(encoded, "%5D", "]")
+	path += "?" + encoded
 
 	var page types.SearchPage
 	if err := s.client.doJSON(ctx, "GET", path, nil, &page); err != nil {

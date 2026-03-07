@@ -28,7 +28,7 @@ func init() {
 // noiseWords are stripped from natural language input before processing.
 var noiseWords = map[string]bool{
 	"show": true, "all": true, "me": true, "my": true, "the": true,
-	"find": true, "get": true, "list": true, "search": true, "for": true,
+	"find": true, "get": true, "list": true, "search": true, "for": true, "in": true,
 	"with": true, "tickets": true, "ticket": true, "that": true,
 	"are": true, "is": true, "a": true, "an": true,
 }
@@ -90,7 +90,7 @@ func translateWithTime(query string, now time.Time) string {
 			clauses = append(clauses, "priority:urgent")
 		} else if v, ok := typeKeywords[tok]; ok {
 			clauses = append(clauses, "type:"+v)
-		} else if tok == "created" || tok == "updated" {
+		} else if tok == "created" || tok == "updated" || tok == "hour" || tok == "hours" {
 			// Skip date-related words already consumed or standalone.
 			continue
 		} else {
@@ -222,8 +222,25 @@ func extractDatePhrases(input string, clauses []string, now time.Time) (string, 
 		input = strings.Replace(input, "this week", " ", 1)
 	}
 
+	// "last/past N hour(s)" — e.g. "past 3 hours"
+	re := regexp.MustCompile(`(?:last|past)\s+(\d+)\s+hours?`)
+	if m := re.FindStringSubmatch(input); m != nil {
+		n, _ := strconv.Atoi(m[1])
+		t := now.Add(-time.Duration(n) * time.Hour)
+		clauses = append(clauses, "created>"+t.UTC().Format(time.RFC3339))
+		input = re.ReplaceAllString(input, " ")
+	}
+
+	// "last/past hour" (no number = 1 hour)
+	if strings.Contains(input, "last hour") || strings.Contains(input, "past hour") {
+		t := now.Add(-time.Hour)
+		clauses = append(clauses, "created>"+t.UTC().Format(time.RFC3339))
+		input = strings.Replace(input, "last hour", " ", 1)
+		input = strings.Replace(input, "past hour", " ", 1)
+	}
+
 	// "last N days" / "past N days"
-	re := regexp.MustCompile(`(?:last|past)\s+(\d+)\s+days?`)
+	re = regexp.MustCompile(`(?:last|past)\s+(\d+)\s+days?`)
 	if m := re.FindStringSubmatch(input); m != nil {
 		n, _ := strconv.Atoi(m[1])
 		date := now.AddDate(0, 0, -n)
