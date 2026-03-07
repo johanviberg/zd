@@ -247,6 +247,267 @@ func TestTranslateWithTime(t *testing.T) {
 			input: "about billing issue",
 			// "about X" captures the rest as bare text for full-text search
 		},
+
+		// --- Case Sensitivity ---
+		{
+			name:     "uppercase OPEN TICKETS",
+			input:    "OPEN TICKETS",
+			expected: "status:open",
+		},
+		{
+			name:     "mixed case High Priority",
+			input:    "High Priority",
+			expected: "priority:high",
+		},
+		{
+			name:     "mixed case Assigned To Jane",
+			input:    "Assigned To Jane",
+			expected: "assignee:jane",
+		},
+
+		// --- Whitespace Handling ---
+		{
+			name:     "leading/trailing whitespace",
+			input:    "  open tickets  ",
+			expected: "status:open",
+		},
+		{
+			name:     "multiple internal spaces",
+			input:    "open   tickets",
+			expected: "status:open",
+		},
+		{
+			name:     "whitespace only",
+			input:    "   ",
+			expected: "",
+		},
+		{
+			name:     "multiple spaces in phrase",
+			input:    "assigned  to  jane",
+			expected: "assignee:jane",
+		},
+
+		// --- Singular Type Keywords ---
+		{
+			name:     "type problem singular",
+			input:    "problem",
+			expected: "type:problem",
+		},
+		{
+			name:     "type incident singular",
+			input:    "incident",
+			expected: "type:incident",
+		},
+		{
+			name:     "type question singular",
+			input:    "question",
+			expected: "type:question",
+		},
+		{
+			name:     "type task singular",
+			input:    "task",
+			expected: "type:task",
+		},
+
+		// --- "tag" keyword (regex branch) ---
+		{
+			name:     "tag keyword (not tagged)",
+			input:    "tag vip",
+			expected: "tags:vip",
+		},
+
+		// --- "hold" standalone keyword ---
+		{
+			name:     "hold standalone keyword",
+			input:    "hold tickets",
+			expected: "status:hold",
+		},
+
+		// --- "past" alternatives ---
+		{
+			name:     "past month",
+			input:    "past month",
+			expected: "created>2026-02-01 created<2026-03-01",
+		},
+		{
+			name:     "past week",
+			input:    "past week",
+			expected: "created>2026-02-23 created<2026-03-02",
+		},
+
+		// --- Singular "day" ---
+		{
+			name:     "past 1 day singular",
+			input:    "past 1 day",
+			expected: "created>2026-03-06",
+		},
+
+		// --- Reverse Priority Order ("priority <level>") ---
+		{
+			name:     "priority high (reverse order)",
+			input:    "priority high",
+			expected: "priority:high",
+		},
+		{
+			name:     "priority low (reverse order)",
+			input:    "priority low",
+			expected: "priority:low",
+		},
+		{
+			name:     "priority urgent (reverse order)",
+			input:    "priority urgent",
+			expected: "priority:urgent",
+		},
+		{
+			name:     "priority normal (reverse order)",
+			input:    "priority normal",
+			expected: "priority:normal",
+		},
+
+		// --- Token Skipping ---
+		{
+			name:     "skip 'created' token",
+			input:    "created open",
+			expected: "status:open",
+		},
+		{
+			name:     "skip 'updated' token",
+			input:    "updated open",
+			expected: "status:open",
+		},
+		{
+			name:     "skip 'hour' token",
+			input:    "hour open",
+			expected: "status:open",
+		},
+		{
+			name:     "skip 'hours' token",
+			input:    "hours open",
+			expected: "status:open",
+		},
+
+		// --- All-Noise / Empty Result Fallback ---
+		{
+			name:     "all noise returns original",
+			input:    "show me all the tickets",
+			expected: "show me all the tickets",
+		},
+		{
+			name:     "single noise word returns original",
+			input:    "tickets",
+			expected: "tickets",
+		},
+
+		// --- Multiple Phrase Patterns Combined ---
+		{
+			name:     "open + assigned + tagged",
+			input:    "open tickets assigned to jane tagged vip",
+			expected: "assignee:jane tags:vip status:open",
+		},
+		{
+			name:     "high priority incidents from group",
+			input:    "high priority incidents from billing",
+			expected: "priority:high group:billing type:incident",
+		},
+		{
+			name:     "unresolved + assigned + today",
+			input:    "unresolved tickets assigned to bob today",
+			expected: "status<solved assignee:bob created>2026-03-07",
+		},
+		{
+			name:     "on hold + tagged + requested by",
+			input:    "tickets on hold tagged urgent requested by alice",
+			expected: "status:hold requester:alice tags:urgent",
+		},
+
+		// --- "about" with Structured Clauses ---
+		{
+			name:     "about with open status",
+			input:    "open tickets about billing",
+			expected: "billing status:open",
+		},
+		{
+			name:     "about multi-word subject",
+			input:    "about network connectivity issue",
+			expected: "network connectivity issue",
+		},
+
+		// --- Clause Ordering (phrases before keywords) ---
+		{
+			name:     "phrase before keyword ordering",
+			input:    "open tagged vip",
+			expected: "tags:vip status:open",
+		},
+		{
+			name:     "date phrase before keyword ordering",
+			input:    "open today",
+			expected: "created>2026-03-07 status:open",
+		},
+
+		// --- "from" at Beginning ---
+		{
+			name:     "from at start of input",
+			input:    "from billing",
+			expected: "group:billing",
+		},
+
+		// --- Numeric/Special Bare Tokens ---
+		{
+			name:     "numeric passthrough",
+			input:    "12345",
+			expected: "12345",
+		},
+		{
+			name:     "ticket number with noise",
+			input:    "ticket 42",
+			expected: "42",
+		},
+
+		// --- Incomplete Phrase Patterns ---
+		{
+			name:     "about alone (no text after)",
+			input:    "about",
+			expected: "about",
+		},
+		{
+			name:     "from alone (no group)",
+			input:    "from",
+			expected: "from",
+		},
+		{
+			name:     "assigned without to",
+			input:    "assigned jane",
+			expected: "assigned jane",
+		},
+		{
+			name:     "requested without by",
+			input:    "requested john",
+			expected: "requested john",
+		},
+
+		// --- Large N Values ---
+		{
+			name:     "past 365 days",
+			input:    "past 365 days",
+			expected: "created>2025-03-07",
+		},
+		{
+			name:     "last 0 hours (zero = now)",
+			input:    "last 0 hours",
+			expected: "created>2026-03-07T12:00:00Z",
+		},
+
+		// --- Passthrough Edge Cases ---
+		{
+			name:     "space before colon triggers passthrough",
+			input:    "status :open",
+			expected: "status :open",
+		},
+		{
+			name:     "mixed syntax and NL passthrough",
+			input:    "status:open urgent tickets",
+			expected: "status:open urgent tickets",
+		},
 	}
 
 	for _, tc := range tests {
@@ -314,6 +575,108 @@ func TestTranslatePublicFunction(t *testing.T) {
 			got := Translate(tc.input)
 			if got != tc.expected {
 				t.Errorf("Translate(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestTranslateWithTime_DateEdgeCases tests date logic with alternate `now` values.
+func TestTranslateWithTime_DateEdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		now      time.Time
+		expected string
+	}{
+		// --- Sunday (weekday=0 branch) ---
+		{
+			name:     "this week on Sunday",
+			input:    "this week",
+			now:      time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC), // Sunday
+			expected: "created>2026-03-02",
+		},
+		{
+			name:     "last week on Sunday",
+			input:    "last week",
+			now:      time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC),
+			expected: "created>2026-02-23 created<2026-03-02",
+		},
+
+		// --- Monday (offset=0) ---
+		{
+			name:     "this week on Monday",
+			input:    "this week",
+			now:      time.Date(2026, 3, 2, 12, 0, 0, 0, time.UTC), // Monday
+			expected: "created>2026-03-02",
+		},
+		{
+			name:     "last week on Monday",
+			input:    "last week",
+			now:      time.Date(2026, 3, 2, 12, 0, 0, 0, time.UTC),
+			expected: "created>2026-02-23 created<2026-03-02",
+		},
+
+		// --- January 1 (year boundary) ---
+		{
+			name:     "last month crosses year boundary",
+			input:    "last month",
+			now:      time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC), // Jan 1
+			expected: "created>2025-12-01 created<2026-01-01",
+		},
+		{
+			name:     "yesterday crosses year boundary",
+			input:    "yesterday",
+			now:      time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+			expected: "created>2025-12-31",
+		},
+		{
+			name:     "last 7 days crosses year boundary",
+			input:    "last 7 days",
+			now:      time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+			expected: "created>2025-12-25",
+		},
+		{
+			name:     "last week crosses year boundary",
+			input:    "last week",
+			now:      time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC), // Thursday
+			expected: "created>2025-12-22 created<2025-12-29",
+		},
+
+		// --- Early morning UTC (hour crossing midnight) ---
+		{
+			name:     "past 3 hours crosses midnight",
+			input:    "past 3 hours",
+			now:      time.Date(2026, 3, 7, 2, 0, 0, 0, time.UTC),
+			expected: "created>2026-03-06T23:00:00Z",
+		},
+		{
+			name:     "past hour stays same date",
+			input:    "past hour",
+			now:      time.Date(2026, 3, 7, 2, 0, 0, 0, time.UTC),
+			expected: "created>2026-03-07T01:00:00Z",
+		},
+
+		// --- Leap year ---
+		{
+			name:     "yesterday is Feb 29 in leap year",
+			input:    "yesterday",
+			now:      time.Date(2028, 3, 1, 12, 0, 0, 0, time.UTC), // 2028 is leap year
+			expected: "created>2028-02-29",
+		},
+		{
+			name:     "last month in leap year March",
+			input:    "last month",
+			now:      time.Date(2028, 3, 1, 12, 0, 0, 0, time.UTC),
+			expected: "created>2028-02-01 created<2028-03-01",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := translateWithTime(tc.input, tc.now)
+			if got != tc.expected {
+				t.Errorf("translateWithTime(%q, %v)\n  got:  %q\n  want: %q", tc.input, tc.now, got, tc.expected)
 			}
 		})
 	}
