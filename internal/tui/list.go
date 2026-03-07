@@ -38,6 +38,14 @@ type refreshLoadedMsg struct {
 	page *types.TicketPage
 }
 
+type moreTicketsLoadedMsg struct {
+	page *types.TicketPage
+}
+
+type moreSearchResultsMsg struct {
+	page *types.SearchPage
+}
+
 type listModel struct {
 	tickets          zendesk.TicketService
 	search           zendesk.SearchService
@@ -58,6 +66,8 @@ type listModel struct {
 	refreshCountdown int
 	knownTicketIDs   map[int64]bool
 	newTicketIDs     map[int64]bool
+	loadingMore      bool
+	translatedQuery  string
 }
 
 func newListModel(tickets zendesk.TicketService, search zendesk.SearchService) listModel {
@@ -92,16 +102,16 @@ func (m listModel) loadTickets() tea.Cmd {
 	}
 }
 
-func (m listModel) doSearch(query string) tea.Cmd {
-	query = nlq.Translate(query)
+func (m *listModel) doSearch(query string) tea.Cmd {
+	translated := nlq.Translate(query)
+	m.translatedQuery = translated
 	return func() tea.Msg {
 		opts := &types.SearchOptions{
-			Limit:     50,
-			SortBy:    "updated_at",
-			SortOrder: "desc",
-			Include:   "users",
+			Limit:   50,
+			Export:  true,
+			Include: "users",
 		}
-		page, err := m.search.Search(context.Background(), query, opts)
+		page, err := m.search.Search(context.Background(), translated, opts)
 		if err != nil {
 			return errMsg{err}
 		}
@@ -133,6 +143,39 @@ func (m listModel) loadTicketsForRefresh() tea.Cmd {
 	}
 }
 
+func (m listModel) loadMoreTickets() tea.Cmd {
+	return func() tea.Msg {
+		opts := &types.ListTicketsOptions{
+			Limit:     50,
+			Sort:      "updated_at",
+			SortOrder: "desc",
+			Include:   "users",
+			Cursor:    m.afterCursor,
+		}
+		page, err := m.tickets.List(context.Background(), opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		return moreTicketsLoadedMsg{page}
+	}
+}
+
+func (m listModel) loadMoreSearch() tea.Cmd {
+	return func() tea.Msg {
+		opts := &types.SearchOptions{
+			Limit:   50,
+			Export:  true,
+			Include: "users",
+			Cursor:  m.afterCursor,
+		}
+		page, err := m.search.Search(context.Background(), m.translatedQuery, opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		return moreSearchResultsMsg{page}
+	}
+}
+
 func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -141,6 +184,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 
 	case ticketsLoadedMsg:
 		m.loading = false
+		m.loadingMore = false
 		m.items = msg.page.Tickets
 		m.hasMore = msg.page.Meta.HasMore
 		m.afterCursor = msg.page.Meta.AfterCursor
@@ -161,6 +205,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 
 	case searchResultsMsg:
 		m.loading = false
+		m.loadingMore = false
 		m.searching = false
 		m.items = make([]types.Ticket, len(msg.page.Results))
 		for i, r := range msg.page.Results {
@@ -168,13 +213,53 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		}
 		m.totalCount = msg.page.Count
 		m.hasMore = msg.page.Meta.HasMore
+		m.afterCursor = msg.page.Meta.AfterCursor
 		m.users = make(map[int64]types.User)
 		for _, u := range msg.page.Users {
 			m.users[u.ID] = u
 		}
 		m.cursor = 0
 
+	case moreTicketsLoadedMsg:
+		m.loadingMore = false
+		m.items = append(m.items, msg.page.Tickets...)
+		m.hasMore = msg.page.Meta.HasMore
+		m.afterCursor = msg.page.Meta.AfterCursor
+		if m.users == nil {
+			m.users = make(map[int64]types.User)
+		}
+		for _, u := range msg.page.Users {
+			m.users[u.ID] = u
+		}
+		if m.knownTicketIDs == nil {
+			m.knownTicketIDs = make(map[int64]bool)
+		}
+		for _, t := range msg.page.Tickets {
+			m.knownTicketIDs[t.ID] = true
+		}
+		if msg.page.Count > 0 {
+			m.totalCount = msg.page.Count
+		}
+
+	case moreSearchResultsMsg:
+		m.loadingMore = false
+		for _, r := range msg.page.Results {
+			m.items = append(m.items, r.Ticket)
+		}
+		m.hasMore = msg.page.Meta.HasMore
+		m.afterCursor = msg.page.Meta.AfterCursor
+		if m.users == nil {
+			m.users = make(map[int64]types.User)
+		}
+		for _, u := range msg.page.Users {
+			m.users[u.ID] = u
+		}
+		if msg.page.Count > 0 {
+			m.totalCount = msg.page.Count
+		}
+
 	case refreshLoadedMsg:
+		m.loadingMore = false
 		newKnown := make(map[int64]bool)
 		for _, t := range msg.page.Tickets {
 			newKnown[t.ID] = true
@@ -205,11 +290,15 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		return m, scheduleCountdownTick()
 
 	case errMsg:
+		if m.loadingMore {
+			m.loadingMore = false
+			return m, nil
+		}
 		m.loading = false
 		m.err = msg.err
 
 	case spinner.TickMsg:
-		if m.loading {
+		if m.loading || m.loadingMore {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
@@ -229,7 +318,18 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		case key.Matches(msg, keys.Down):
 			if m.cursor < len(m.items)-1 {
 				m.cursor++
-				return m, m.emitCursorChanged()
+				cmds := []tea.Cmd{m.emitCursorChanged()}
+				// Auto-load more when reaching last item
+				if m.cursor == len(m.items)-1 && m.hasMore && !m.loadingMore {
+					m.loadingMore = true
+					cmds = append(cmds, m.spinner.Tick, m.triggerLoadMore())
+				}
+				return m, tea.Batch(cmds...)
+			}
+		case key.Matches(msg, keys.NextPage):
+			if m.hasMore && !m.loadingMore {
+				m.loadingMore = true
+				return m, tea.Batch(m.spinner.Tick, m.triggerLoadMore())
 			}
 		case key.Matches(msg, keys.Enter):
 			if len(m.items) > 0 && m.cursor < len(m.items) {
@@ -240,6 +340,13 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m listModel) triggerLoadMore() tea.Cmd {
+	if m.searchQuery != "" {
+		return m.loadMoreSearch()
+	}
+	return m.loadMoreTickets()
 }
 
 func (m listModel) emitCursorChanged() tea.Cmd {
@@ -264,9 +371,17 @@ func (m listModel) View() string {
 	var b strings.Builder
 
 	// Header
-	countLabel := fmt.Sprintf("%d tickets", m.totalCount)
+	var countLabel string
 	if m.searchQuery != "" {
-		countLabel = fmt.Sprintf("%d results for %q", m.totalCount, m.searchQuery)
+		if m.totalCount > len(m.items) {
+			countLabel = fmt.Sprintf("Showing %d of %d results for %q", len(m.items), m.totalCount, m.searchQuery)
+		} else {
+			countLabel = fmt.Sprintf("%d results for %q", len(m.items), m.searchQuery)
+		}
+	} else if m.totalCount > len(m.items) {
+		countLabel = fmt.Sprintf("Showing %d of %d tickets", len(m.items), m.totalCount)
+	} else {
+		countLabel = fmt.Sprintf("%d tickets", len(m.items))
 	}
 	header := titleStyle.Render("Tickets") + "  " + subtitleStyle.Render(countLabel)
 	if m.autoRefresh {
@@ -278,6 +393,9 @@ func (m listModel) View() string {
 
 	// Calculate visible rows
 	visibleRows := m.height - 6 // header + help bar
+	if m.hasMore || m.loadingMore {
+		visibleRows-- // reserve line for bottom indicator
+	}
 	if visibleRows < 1 {
 		visibleRows = 10
 	}
@@ -296,6 +414,13 @@ func (m listModel) View() string {
 		t := m.items[i]
 		line := m.renderTicketRow(t, i == m.cursor)
 		b.WriteString(line + "\n")
+	}
+
+	// Bottom indicator
+	if m.loadingMore {
+		b.WriteString(m.spinner.View() + " Loading more tickets...")
+	} else if m.hasMore {
+		b.WriteString(dimStyle.Render("  ↓ press n or scroll down to load more"))
 	}
 
 	return b.String()

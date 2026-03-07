@@ -314,6 +314,16 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case moreTicketsLoadedMsg:
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+
+	case moreSearchResultsMsg:
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+
 	case cursorChangedMsg:
 		if m.state == splitView && m.showDetail {
 			m.detail = newDetailModel(m.tickets)
@@ -632,16 +642,23 @@ func (m App) helpBar() string {
 	var left string
 	switch m.state {
 	case listView:
+		nav := "↑↓/jk navigate  enter view  o open  / search"
 		if m.list.searchQuery != "" {
-			left = "↑↓/jk navigate  enter view  o open  / search  esc clear search  r auto-refresh  R refresh  c comment  s status  p priority  v split  q quit"
-		} else {
-			left = "↑↓/jk navigate  enter view  o open  / search  r auto-refresh  R refresh  c comment  s status  p priority  v split  q quit"
+			nav += "  esc clear search"
 		}
+		if m.list.hasMore {
+			nav += "  n load more"
+		}
+		left = nav + "  r auto-refresh  R refresh  c comment  s status  p priority  v split  q quit"
 	case detailView:
 		left = "esc back  ↑↓ scroll  o open  c comment  s status  p priority  q quit"
 	case splitView:
 		if m.focus == focusList {
-			left = "↑↓/jk navigate  enter view  tab focus  v hide panel  o open  / search  c comment  s status  p priority  q quit"
+			nav := "↑↓/jk navigate  enter view  tab focus  v hide panel  o open  / search"
+			if m.list.hasMore {
+				nav += "  n load more"
+			}
+			left = nav + "  c comment  s status  p priority  q quit"
 		} else {
 			left = "↑↓ scroll  tab focus  esc back  o open  c comment  s status  p priority  q quit"
 		}

@@ -15,7 +15,6 @@ type keyMap struct {
 	Submit        key.Binding
 	Tab           key.Binding
 	NextPage      key.Binding
-	PrevPage      key.Binding
 	Refresh       key.Binding
 	ManualRefresh key.Binding
 	Open          key.Binding
@@ -68,12 +67,8 @@ var keys = keyMap{
 		key.WithHelp("tab", "toggle"),
 	),
 	NextPage: key.NewBinding(
-		key.WithKeys("n", "right"),
-		key.WithHelp("n/→", "next page"),
-	),
-	PrevPage: key.NewBinding(
-		key.WithKeys("N", "left"),
-		key.WithHelp("N/←", "prev page"),
+		key.WithKeys("n"),
+		key.WithHelp("n", "load more"),
 	),
 	Refresh: key.NewBinding(
 		key.WithKeys("r"),
