@@ -7,3 +7,6 @@ dist/
 credentials.json
 config.yaml
 *.pem
+
+# OS
+.DS_Store
