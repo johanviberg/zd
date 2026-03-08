@@ -91,7 +91,7 @@ func (m App) listPanelWidth() int {
 	if m.state != splitView || !m.showDetail {
 		return m.width
 	}
-	return int(float64(m.width) * 0.38)
+	return (m.width - 1) / 2 // -1 for divider
 }
 
 func (m App) detailPanelWidth() int {
