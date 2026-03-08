@@ -24,6 +24,18 @@ archives:
       - goos: windows
         format: zip
 
+nfpms:
+  - id: default
+    package_name: zd
+    maintainer: Johan Viberg <johanviberg@users.noreply.github.com>
+    description: "AI agent-friendly CLI for Zendesk"
+    homepage: "https://github.com/johanviberg/zd"
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+
 checksum:
   name_template: "checksums.txt"
 

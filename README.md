@@ -28,6 +28,22 @@ brew install johanviberg/tap/zd
 go install github.com/johanviberg/zd@latest
 ```
 
+### Linux (deb)
+
+Download the `.deb` package from the [latest release](https://github.com/johanviberg/zd/releases/latest):
+
+```bash
+sudo dpkg -i zd_*_linux_amd64.deb
+```
+
+### Linux (rpm)
+
+Download the `.rpm` package from the [latest release](https://github.com/johanviberg/zd/releases/latest):
+
+```bash
+sudo rpm -i zd_*_linux_amd64.rpm
+```
+
 ### Build from source
 
 ```bash
@@ -162,6 +178,7 @@ The TUI provides:
 - **Auto-refresh** — press `r` to toggle auto-refresh (polls every 5 min with countdown), `R` for an immediate refresh; new tickets are highlighted with a star and a terminal bell sounds
 - **Status chart** — press `b` to toggle a vertical bar chart showing ticket status distribution, color-coded to match status labels
 - **Dynamic window title** — terminal tab title updates to reflect current context (ticket count, search query, or ticket detail)
+- **Go to ticket** — press `g` to jump directly to a ticket by ID
 - **Open in browser** — press `o` to open the selected ticket in your default browser
 - **Status bar** — shows the authenticated user in the bottom bar
 - **Navigation** — `esc` to go back, `q` to quit
@@ -327,7 +344,6 @@ This returns a schema with property types, required fields, and defaults that an
 | `--subdomain` | Override Zendesk subdomain |
 | `--profile` | Config profile (default: `default`) |
 | `--demo` | Use synthetic demo data (no auth required) |
-| `--debug` | Debug logging to stderr |
 | `--trace-id` | Trace ID attached to API requests |
 
 ## Configuration
