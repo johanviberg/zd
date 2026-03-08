@@ -164,3 +164,51 @@ zd tickets update 12345 -o json --status solved --safe-update
 ```
 
 If the ticket was modified between your read and update, the request fails instead of silently overwriting changes.
+
+## Listing ticket comments
+
+Retrieve the conversation history for a ticket:
+
+```bash
+# All comments (oldest first by default)
+zd tickets comments 12345 -o json
+
+# Most recent comments first
+zd tickets comments 12345 -o json --sort-order desc --limit 10
+
+# With author names resolved
+zd tickets comments 12345 -o json --include users
+```
+
+## Searching Help Center articles
+
+Find relevant knowledge base content:
+
+```bash
+# Search articles
+zd articles search "password reset" -o json
+
+# Browse recent articles
+zd articles list -o json --sort-by updated_at --limit 20
+
+# Show a specific article
+zd articles show 360001234567 -o json
+```
+
+## Demo mode for exploration
+
+Use `--demo` to explore `zd` without authentication. It generates 100+ synthetic tickets locally:
+
+```bash
+# Browse demo tickets in the TUI
+zd tui --demo
+
+# List and search demo tickets
+zd tickets list --demo -o json
+zd tickets search "status:open" --demo -o json
+
+# View comments on a demo ticket
+zd tickets comments 1 --demo -o json
+```
+
+Demo mode works with `tickets list`, `tickets show`, `tickets search`, `tickets comments`, and `tui`.

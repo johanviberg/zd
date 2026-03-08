@@ -155,6 +155,34 @@ zd tickets search "status:closed" -o json --export
 
 For the full search syntax reference, see [reference/search-syntax.md](reference/search-syntax.md).
 
+### List ticket comments
+
+```bash
+zd tickets comments 12345 -o json
+zd tickets comments 12345 -o json --sort-order desc --limit 50
+zd tickets comments 12345 -o json --include users
+```
+
+### List Help Center articles
+
+```bash
+zd articles list -o json
+zd articles list -o json --limit 50 --sort-by updated_at
+```
+
+### Show an article
+
+```bash
+zd articles show 360001234567 -o json
+```
+
+### Search Help Center articles
+
+```bash
+zd articles search "password reset" -o json
+zd articles search "billing FAQ" -o json --limit 10
+```
+
 ## Output handling
 
 ### Formats
@@ -227,3 +255,4 @@ When using `zd` from an AI agent or automated pipeline:
 - **Prefer token auth** via env vars — OAuth requires a browser
 - **Use `--fields`** to minimize response size when you only need specific data
 - **Use `--include users`** to resolve requester/assignee IDs into names without extra API calls
+- **Use `--demo`** to explore commands without authentication — generates synthetic data locally

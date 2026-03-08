@@ -13,10 +13,10 @@ These flags are available on all commands:
 | `--no-headers` | | bool | `false` | Omit table headers in text mode |
 | `--non-interactive` | | bool | `false` | Never prompt for input |
 | `--yes` | | bool | `false` | Auto-confirm prompts |
-| `--debug` | | bool | `false` | Debug logging to stderr |
 | `--trace-id` | | string | | Trace ID attached to API requests |
 | `--subdomain` | | string | | Override Zendesk subdomain |
 | `--profile` | | string | `default` | Config profile |
+| `--demo` | | bool | `false` | Use synthetic demo data (no auth required) |
 
 ## auth
 
@@ -32,6 +32,7 @@ Authenticate with Zendesk.
 | `--subdomain` | string | | Zendesk subdomain (required) |
 | `--client-id` | string | | OAuth client ID (required for first-time OAuth) |
 | `--client-secret` | string | | OAuth client secret (required for first-time OAuth) |
+| `--scope` | string | `read write` | OAuth scope |
 
 **Token auth example:**
 
@@ -194,6 +195,69 @@ zd tickets search "status:open priority:urgent" -o json --limit 50
 zd tickets search "status:open" -o json --include users
 ```
 
+### `zd tickets comments <id>`
+
+List comments on a ticket.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--limit` | int | `100` | Maximum number of comments to return |
+| `--cursor` | string | | Pagination cursor |
+| `--sort-order` | string | `asc` | Sort order: `asc` or `desc` |
+| `--include` | string | | Sideload related records: `users` |
+
+**Positional argument:** `id` (required) — ticket ID
+
+```bash
+zd tickets comments 12345 -o json
+zd tickets comments 12345 -o json --sort-order desc --limit 50
+zd tickets comments 12345 -o json --include users
+```
+
+## articles
+
+### `zd articles list`
+
+List Help Center articles.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--limit` | int | `25` | Maximum number of articles to return |
+| `--cursor` | string | | Pagination cursor |
+| `--sort-by` | string | | Sort field: `title`, `created_at`, `updated_at` |
+| `--sort-order` | string | `desc` | Sort order: `asc` or `desc` |
+
+```bash
+zd articles list -o json
+zd articles list -o json --limit 50 --sort-by updated_at --sort-order asc
+```
+
+### `zd articles show <id>`
+
+Show a single Help Center article by ID.
+
+**Positional argument:** `id` (required) — article ID
+
+```bash
+zd articles show 360001234567 -o json
+```
+
+### `zd articles search <query>`
+
+Search Help Center articles.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--limit` | int | `25` | Maximum number of results |
+| `--cursor` | string | | Pagination cursor |
+
+**Positional argument:** `query` (required) — search query string
+
+```bash
+zd articles search "password reset" -o json
+zd articles search "billing" -o json --limit 10
+```
+
 ## config
 
 ### `zd config show`
@@ -233,6 +297,28 @@ Output JSON Schema for a command's input, for AI agent tool calling.
 ```bash
 zd schema --command "tickets create"
 zd schema --command "tickets search"
+```
+
+### `zd tui`
+
+Launch the interactive terminal UI for browsing and managing tickets.
+
+No additional flags (uses global flags like `--demo`, `--profile`).
+
+```bash
+zd tui
+zd tui --demo
+```
+
+### `zd mcp serve`
+
+Start an MCP (Model Context Protocol) server on stdio for AI agent integration.
+
+No additional flags. Uses the same authentication as the CLI.
+
+```bash
+zd mcp serve
+zd mcp serve --demo
 ```
 
 ### `zd version`
