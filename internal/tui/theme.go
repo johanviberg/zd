@@ -102,6 +102,13 @@ var (
 				BorderLeft(true).
 				BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+
+	chartTitleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "#374151", Dark: "#D1D5DB"})
+
+	chartLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"})
 )
 
 func styledStatus(status string) string {

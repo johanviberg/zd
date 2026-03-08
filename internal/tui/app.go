@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -70,7 +71,7 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 }
 
 func (m App) Init() tea.Cmd {
-	return tea.Batch(m.list.Init(), m.fetchCurrentUser())
+	return tea.Batch(m.list.Init(), m.fetchCurrentUser(), tea.SetWindowTitle("zd — Loading..."))
 }
 
 func (m App) fetchCurrentUser() tea.Cmd {
@@ -128,6 +129,51 @@ func (m *App) loadDetailForCursor() tea.Cmd {
 	m.detail.width = w
 	m.detail.height = m.height
 	return tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(id))
+}
+
+func (m App) windowTitle() string {
+	switch m.state {
+	case detailView:
+		if m.detail.ticket != nil {
+			subject := m.detail.ticket.Subject
+			if len([]rune(subject)) > 50 {
+				subject = string([]rune(subject)[:50]) + "…"
+			}
+			return fmt.Sprintf("zd — #%d: %s", m.detail.ticket.ID, subject)
+		}
+		return "zd — Loading..."
+	case listView, splitView:
+		if m.list.loading {
+			return "zd — Loading..."
+		}
+		if len(m.list.items) == 0 {
+			return "zd — No tickets"
+		}
+		if m.list.searchQuery != "" {
+			q := m.list.searchQuery
+			if len([]rune(q)) > 40 {
+				q = string([]rune(q)[:40]) + "…"
+			}
+			return fmt.Sprintf("zd — Search: %q (%d results)", q, len(m.list.items))
+		}
+		newCount := len(m.list.newTicketIDs)
+		if newCount > 0 {
+			return fmt.Sprintf("zd — %d tickets (%d new)", len(m.list.items), newCount)
+		}
+		return fmt.Sprintf("zd — %d tickets", len(m.list.items))
+	}
+	return "zd"
+}
+
+func (m App) updateWindowTitle() tea.Cmd {
+	return tea.SetWindowTitle(m.windowTitle())
+}
+
+func ringBell() tea.Cmd {
+	return func() tea.Msg {
+		os.Stderr.Write([]byte("\a"))
+		return nil
+	}
 }
 
 func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -271,6 +317,14 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentUser = msg.user
 		return m, nil
 
+	case ticketLoadedMsg:
+		var cmd tea.Cmd
+		m.detail, cmd = m.detail.Update(msg)
+		if m.state == detailView {
+			return m, tea.Batch(cmd, m.updateWindowTitle())
+		}
+		return m, cmd
+
 	case countdownTickMsg:
 		if !m.list.autoRefresh {
 			return m, nil
@@ -288,19 +342,23 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.loading = false
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
-		cmds := []tea.Cmd{cmd}
+		cmds := []tea.Cmd{cmd, m.updateWindowTitle()}
 		// Reload detail if in split view
 		if m.state == splitView && m.showDetail {
 			if loadCmd := m.loadDetailForCursor(); loadCmd != nil {
 				cmds = append(cmds, loadCmd)
 			}
 		}
+		// Ring bell when new tickets found
+		if m.list.lastRefreshNewCount > 0 {
+			cmds = append(cmds, ringBell())
+		}
 		return m, tea.Batch(cmds...)
 
 	case ticketsLoadedMsg:
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
-		cmds := []tea.Cmd{cmd}
+		cmds := []tea.Cmd{cmd, m.updateWindowTitle()}
 		if m.state == splitView && m.showDetail {
 			if len(m.list.items) > 0 {
 				// Auto-load first ticket
@@ -323,7 +381,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case searchResultsMsg:
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
-		cmds := []tea.Cmd{cmd}
+		cmds := []tea.Cmd{cmd, m.updateWindowTitle()}
 		if m.state == splitView && m.showDetail {
 			if len(m.list.items) > 0 {
 				// Auto-load first result
@@ -374,14 +432,14 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detail.viewport.Width = m.width - 4
 				m.detail.viewport.Height = m.height - 6
 				m.detail.viewport.SetContent(m.detail.renderContent())
-				return m, nil
+				return m, m.updateWindowTitle()
 			}
 		}
 		m.state = detailView
 		m.detail = newDetailModel(m.tickets)
 		m.detail.width = m.width
 		m.detail.height = m.height
-		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id))
+		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), tea.SetWindowTitle("zd — Loading..."))
 
 	case goBackMsg:
 		if m.showDetail {
@@ -399,15 +457,15 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			listMsg := tea.WindowSizeMsg{Width: m.listPanelWidth(), Height: m.height}
 			var cmd tea.Cmd
 			m.list, cmd = m.list.Update(listMsg)
-			return m, cmd
+			return m, tea.Batch(cmd, m.updateWindowTitle())
 		}
 		m.state = listView
-		return m, nil
+		return m, m.updateWindowTitle()
 
 	case searchDoneMsg:
 		m.list.searchQuery = msg.query
 		m.list.loading = true
-		return m, tea.Batch(m.list.spinner.Tick, m.list.doSearch(msg.query))
+		return m, tea.Batch(m.list.spinner.Tick, m.list.doSearch(msg.query), tea.SetWindowTitle(fmt.Sprintf("zd — Searching: %q", msg.query)))
 
 	case searchCancelMsg:
 		if m.list.searchQuery != "" {
@@ -415,7 +473,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.loading = true
 			return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
 		}
-		return m, nil
+		return m, m.updateWindowTitle()
 
 	case gotoDoneMsg:
 		return m, func() tea.Msg { return showDetailMsg{id: msg.id} }
@@ -428,6 +486,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case splitView:
 		if msg, ok := msg.(tea.KeyMsg); ok {
+			// Toggle chart
+			if key.Matches(msg, keys.ToggleChart) {
+				m.list.showChart = !m.list.showChart
+				return m, nil
+			}
 			// Action keys work regardless of focus
 			if len(m.list.items) > 0 {
 				t := m.list.items[m.list.cursor]
@@ -525,6 +588,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case listView:
 		// Check for action keys before routing to list
 		if msg, ok := msg.(tea.KeyMsg); ok {
+			// Toggle chart
+			if key.Matches(msg, keys.ToggleChart) {
+				m.list.showChart = !m.list.showChart
+				return m, nil
+			}
 			switch {
 			case key.Matches(msg, keys.Refresh):
 				m.list.autoRefresh = !m.list.autoRefresh
@@ -714,7 +782,7 @@ func (m App) helpBar() string {
 		if m.list.hasMore {
 			nav += "  n load more"
 		}
-		left = nav + "  g goto  r auto-refresh  R refresh  c comment  s status  p priority  v split  q quit"
+		left = nav + "  g goto  r auto-refresh  R refresh  c comment  s status  p priority  b chart  v split  q quit"
 	case detailView:
 		left = "esc back  ↑↓ scroll  g goto  o open  c comment  s status  p priority  q quit"
 	case splitView:
@@ -723,7 +791,7 @@ func (m App) helpBar() string {
 			if m.list.hasMore {
 				nav += "  n load more"
 			}
-			left = nav + "  c comment  s status  p priority  q quit"
+			left = nav + "  b chart  c comment  s status  p priority  q quit"
 		} else {
 			left = "↑↓ scroll  tab focus  esc back  g goto  o open  c comment  s status  p priority  q quit"
 		}

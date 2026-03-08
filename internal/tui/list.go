@@ -47,27 +47,29 @@ type moreSearchResultsMsg struct {
 }
 
 type listModel struct {
-	tickets          zendesk.TicketService
-	search           zendesk.SearchService
-	items            []types.Ticket
-	users            map[int64]types.User
-	cursor           int
-	width            int
-	height           int
-	loading          bool
-	err              error
-	spinner          spinner.Model
-	hasMore          bool
-	afterCursor      string
-	totalCount       int
-	searchQuery      string
-	searching        bool
-	autoRefresh      bool
-	refreshCountdown int
-	knownTicketIDs   map[int64]bool
-	newTicketIDs     map[int64]bool
-	loadingMore      bool
-	translatedQuery  string
+	tickets             zendesk.TicketService
+	search              zendesk.SearchService
+	items               []types.Ticket
+	users               map[int64]types.User
+	cursor              int
+	width               int
+	height              int
+	loading             bool
+	err                 error
+	spinner             spinner.Model
+	hasMore             bool
+	afterCursor         string
+	totalCount          int
+	searchQuery         string
+	searching           bool
+	autoRefresh         bool
+	refreshCountdown    int
+	knownTicketIDs      map[int64]bool
+	newTicketIDs        map[int64]bool
+	loadingMore         bool
+	translatedQuery     string
+	showChart           bool
+	lastRefreshNewCount int
 }
 
 func newListModel(tickets zendesk.TicketService, search zendesk.SearchService) listModel {
@@ -75,10 +77,11 @@ func newListModel(tickets zendesk.TicketService, search zendesk.SearchService) l
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
 	return listModel{
-		tickets: tickets,
-		search:  search,
-		loading: true,
-		spinner: s,
+		tickets:   tickets,
+		search:    search,
+		loading:   true,
+		spinner:   s,
+		showChart: true,
 	}
 }
 
@@ -261,12 +264,15 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 	case refreshLoadedMsg:
 		m.loadingMore = false
 		newKnown := make(map[int64]bool)
+		newCount := 0
 		for _, t := range msg.page.Tickets {
 			newKnown[t.ID] = true
 			if !m.knownTicketIDs[t.ID] {
 				m.newTicketIDs[t.ID] = true
+				newCount++
 			}
 		}
+		m.lastRefreshNewCount = newCount
 		m.knownTicketIDs = newKnown
 		m.items = msg.page.Tickets
 		m.hasMore = msg.page.Meta.HasMore
@@ -396,6 +402,9 @@ func (m listModel) View() string {
 	if m.hasMore || m.loadingMore {
 		visibleRows-- // reserve line for bottom indicator
 	}
+	if m.showChart && len(m.items) > 1 {
+		visibleRows -= chartHeight
+	}
 	if visibleRows < 1 {
 		visibleRows = 10
 	}
@@ -421,6 +430,12 @@ func (m listModel) View() string {
 		b.WriteString(m.spinner.View() + " Loading more tickets...")
 	} else if m.hasMore {
 		b.WriteString(dimStyle.Render("  ↓ press n or scroll down to load more"))
+	}
+
+	// Status distribution chart
+	if m.showChart && len(m.items) > 1 {
+		b.WriteString("\n")
+		b.WriteString(renderStatusChart(m.items, m.width, chartHeight))
 	}
 
 	return b.String()
