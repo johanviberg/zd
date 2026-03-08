@@ -398,7 +398,7 @@ func (m listModel) View() string {
 	b.WriteString(header + "\n\n")
 
 	// Calculate visible rows
-	visibleRows := m.height - 6 // header + help bar
+	visibleRows := m.height - 8 // header + help bar + padding
 	if m.hasMore || m.loadingMore {
 		visibleRows-- // reserve line for bottom indicator
 	}
@@ -425,6 +425,14 @@ func (m listModel) View() string {
 		b.WriteString(line + "\n")
 	}
 
+	// Fill remaining space so chart anchors to bottom
+	actualRows := end - start
+	if actualRows < visibleRows {
+		for i := 0; i < visibleRows-actualRows; i++ {
+			b.WriteString("\n")
+		}
+	}
+
 	// Bottom indicator
 	if m.loadingMore {
 		b.WriteString(m.spinner.View() + " Loading more tickets...")
@@ -434,7 +442,7 @@ func (m listModel) View() string {
 
 	// Status distribution chart
 	if m.showChart && len(m.items) > 1 {
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 		b.WriteString(renderStatusChart(m.items, m.width, chartHeight))
 	}
 

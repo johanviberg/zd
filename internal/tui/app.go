@@ -734,7 +734,7 @@ func (m App) View() string {
 	styledContent := lipgloss.NewStyle().
 		Height(contentHeight).
 		MaxHeight(contentHeight).
-		Padding(1, 2).
+		Padding(2, 2).
 		Render(content)
 
 	return styledContent + "\n" + help

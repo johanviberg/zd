@@ -11,7 +11,7 @@ import (
 
 const (
 	chartMaxBarHeight = 6
-	chartHeight       = chartMaxBarHeight + 4 // bars + count + icon + label + title
+	chartHeight       = chartMaxBarHeight + 6 // bars + count + label + title + padding
 )
 
 var statusOrder = []string{"new", "open", "pending", "hold", "solved", "closed"}
@@ -72,7 +72,7 @@ func renderStatusChart(items []types.Ticket, width int, height int) string {
 
 	var b strings.Builder
 	b.WriteString(chartTitleStyle.Render("Status Distribution"))
-	b.WriteString("\n")
+	b.WriteString("\n\n")
 
 	// Render bars row by row, top to bottom
 	for row := maxBarHeight; row >= 1; row-- {
@@ -113,46 +113,26 @@ func renderStatusChart(items []types.Ticket, width int, height int) string {
 	b.WriteString(countLine.String())
 	b.WriteString("\n")
 
-	// Icon row
-	var iconLine strings.Builder
+	// Label row (icon + full status name)
+	var labelLine strings.Builder
 	for i, s := range active {
 		icon := statusIcons[s]
 		color := statusColors[s]
 		iconStyle := lipgloss.NewStyle().Foreground(color)
-		rendered := iconStyle.Render(icon)
-		pad := (colWidth - 1) / 2 // icon is 1 visible char
-		cell := strings.Repeat(" ", pad) + rendered + strings.Repeat(" ", colWidth-1-pad)
-		if i > 0 {
-			iconLine.WriteString(" ")
-		}
-		iconLine.WriteString(cell)
-	}
-	b.WriteString(iconLine.String())
-	b.WriteString("\n")
-
-	// Label row (abbreviated status names)
-	shortNames := map[string]string{
-		"new":     "new",
-		"open":    "open",
-		"pending": "pend",
-		"hold":    "hold",
-		"solved":  "solv",
-		"closed":  "clos",
-	}
-	var labelLine strings.Builder
-	for i, s := range active {
-		label := shortNames[s]
-		pad := (colWidth - len(label)) / 2
+		label := iconStyle.Render(icon) + " " + chartLabelStyle.Render(s)
+		visLen := 1 + 1 + len(s) // icon + space + status name
+		pad := (colWidth - visLen) / 2
 		if pad < 0 {
 			pad = 0
 		}
-		cell := strings.Repeat(" ", pad) + chartLabelStyle.Render(label) + strings.Repeat(" ", colWidth-len(label)-pad)
+		cell := strings.Repeat(" ", pad) + label + strings.Repeat(" ", colWidth-visLen-pad)
 		if i > 0 {
 			labelLine.WriteString(" ")
 		}
 		labelLine.WriteString(cell)
 	}
 	b.WriteString(labelLine.String())
+	b.WriteString("\n\n")
 
 	return b.String()
 }
