@@ -1,6 +1,14 @@
 # Zendesk CLI (`zd`)
 
+[![Release](https://img.shields.io/github/v/release/johanviberg/zd)](https://github.com/johanviberg/zd/releases/latest)
+[![CI](https://github.com/johanviberg/zd/actions/workflows/release.yml/badge.svg)](https://github.com/johanviberg/zd/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/johanviberg/zd)](https://goreportcard.com/report/github.com/johanviberg/zd)
+[![Go Reference](https://pkg.go.dev/badge/github.com/johanviberg/zd.svg)](https://pkg.go.dev/github.com/johanviberg/zd)
+[![License: MIT](https://img.shields.io/github/license/johanviberg/zd)](LICENSE)
+
 An unofficial, agent-friendly command-line interface for Zendesk's ticketing REST API. Built for both humans and AI agents.
+
+![zd TUI screenshot](zd.png)
 
 ## What it does
 
@@ -151,7 +159,9 @@ The TUI provides:
 - **Search** — press `/` to search using Zendesk search syntax or natural language (e.g. `status:open priority:high`), `esc` to clear
 - **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, submit with `ctrl+s`
 - **Status/Priority** — press `s` or `p` to change status or priority via a picker
-- **Auto-refresh** — press `r` to toggle auto-refresh (polls every 5 min with countdown), `R` for an immediate refresh; new tickets are highlighted with a star
+- **Auto-refresh** — press `r` to toggle auto-refresh (polls every 5 min with countdown), `R` for an immediate refresh; new tickets are highlighted with a star and a terminal bell sounds
+- **Status chart** — press `b` to toggle a vertical bar chart showing ticket status distribution, color-coded to match status labels
+- **Dynamic window title** — terminal tab title updates to reflect current context (ticket count, search query, or ticket detail)
 - **Open in browser** — press `o` to open the selected ticket in your default browser
 - **Status bar** — shows the authenticated user in the bottom bar
 - **Navigation** — `esc` to go back, `q` to quit
