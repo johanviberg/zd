@@ -491,6 +491,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list.showChart = !m.list.showChart
 				return m, nil
 			}
+			// Toggle tags column
+			if key.Matches(msg, keys.ToggleTags) {
+				m.list.showTags = !m.list.showTags
+				return m, nil
+			}
 			// Action keys work regardless of focus
 			if len(m.list.items) > 0 {
 				t := m.list.items[m.list.cursor]
@@ -591,6 +596,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle chart
 			if key.Matches(msg, keys.ToggleChart) {
 				m.list.showChart = !m.list.showChart
+				return m, nil
+			}
+			// Toggle tags column
+			if key.Matches(msg, keys.ToggleTags) {
+				m.list.showTags = !m.list.showTags
 				return m, nil
 			}
 			switch {
@@ -782,7 +792,7 @@ func (m App) helpBar() string {
 		if m.list.hasMore {
 			nav += "  n load more"
 		}
-		left = nav + "  g goto  r auto-refresh  R refresh  c comment  s status  p priority  b chart  v split  q quit"
+		left = nav + "  g goto  r auto-refresh  R refresh  c comment  s status  p priority  t tags  b chart  v split  q quit"
 	case detailView:
 		left = "esc back  ↑↓ scroll  g goto  o open  c comment  s status  p priority  q quit"
 	case splitView:
@@ -791,7 +801,7 @@ func (m App) helpBar() string {
 			if m.list.hasMore {
 				nav += "  n load more"
 			}
-			left = nav + "  b chart  c comment  s status  p priority  q quit"
+			left = nav + "  t tags  b chart  c comment  s status  p priority  q quit"
 		} else {
 			left = "↑↓ scroll  tab focus  esc back  g goto  o open  c comment  s status  p priority  q quit"
 		}

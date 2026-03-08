@@ -20,6 +20,7 @@ type keyMap struct {
 	Open          key.Binding
 	ToggleDetail  key.Binding
 	ToggleChart   key.Binding
+	ToggleTags    key.Binding
 	GoTo          key.Binding
 }
 
@@ -91,6 +92,10 @@ var keys = keyMap{
 	ToggleChart: key.NewBinding(
 		key.WithKeys("b"),
 		key.WithHelp("b", "toggle chart"),
+	),
+	ToggleTags: key.NewBinding(
+		key.WithKeys("t"),
+		key.WithHelp("t", "toggle tags"),
 	),
 	GoTo: key.NewBinding(
 		key.WithKeys("g"),

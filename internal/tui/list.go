@@ -69,6 +69,7 @@ type listModel struct {
 	loadingMore         bool
 	translatedQuery     string
 	showChart           bool
+	showTags            bool
 	lastRefreshNewCount int
 }
 
@@ -466,7 +467,11 @@ func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
 	ago := relativeTime(t.UpdatedAt)
 
 	// Truncate subject to fit
-	maxSubject := m.width - 55
+	tagsWidth := 0
+	if m.showTags {
+		tagsWidth = 22 // 20 content + 2 spacing
+	}
+	maxSubject := m.width - 55 - tagsWidth
 	if maxSubject < 20 {
 		maxSubject = 20
 	}
@@ -481,7 +486,18 @@ func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
 	subjectCol := lipgloss.NewStyle().Width(maxSubject).Render(subject)
 	agoCol := dimStyle.Render(ago)
 
-	row := pointer + idCol + " " + statusCol + " " + prioCol + " " + subjectCol + "  " + agoCol
+	var row string
+	if m.showTags {
+		tags := strings.Join(t.Tags, ", ")
+		tagsRunes := []rune(tags)
+		if len(tagsRunes) > 20 {
+			tags = string(tagsRunes[:19]) + "…"
+		}
+		tagsCol := dimStyle.Copy().Width(20).Render(tags)
+		row = pointer + idCol + " " + statusCol + " " + prioCol + " " + tagsCol + "  " + subjectCol + "  " + agoCol
+	} else {
+		row = pointer + idCol + " " + statusCol + " " + prioCol + " " + subjectCol + "  " + agoCol
+	}
 
 	if selected {
 		return selectedStyle.Render(row)
