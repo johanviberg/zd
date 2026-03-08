@@ -47,18 +47,21 @@ type App struct {
 	actions     actionsModel
 	searchM     searchModel
 	gotoM       gotoModel
+	cmdPalette  cmdPaletteModel
 	width       int
 	height      int
 	focus       panelFocus
 	showDetail  bool
+	version     string
 }
 
-func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users zendesk.UserService, subdomain string) App {
+func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users zendesk.UserService, subdomain, version string) App {
 	return App{
 		tickets:    tickets,
 		search:     search,
 		users:      users,
 		subdomain:  subdomain,
+		version:    version,
 		state:      splitView,
 		showDetail: true,
 		focus:      focusList,
@@ -67,6 +70,7 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 		actions:    newActionsModel(tickets),
 		searchM:    newSearchModel(),
 		gotoM:      newGotoModel(),
+		cmdPalette: newCmdPaletteModel(),
 	}
 }
 
@@ -211,13 +215,22 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		m.gotoM, cmd = m.gotoM.Update(msg)
 		cmds = append(cmds, cmd)
+		m.cmdPalette, cmd = m.cmdPalette.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 
 	case tea.KeyMsg:
 		// Global quit — but not when in input mode
-		if m.actions.mode == actionNone && !m.searchM.active && !m.gotoM.active {
+		if m.actions.mode == actionNone && !m.searchM.active && !m.gotoM.active && !m.cmdPalette.active {
 			if key.Matches(msg, keys.Quit) {
 				return m, tea.Quit
+			}
+
+			// ctrl+p: command palette
+			if key.Matches(msg, keys.CommandPalette) {
+				hasItems := len(m.list.items) > 0
+				cmd := m.cmdPalette.open(m.state, m.focus, m.showDetail, m.list.hasMore, hasItems)
+				return m, cmd
 			}
 
 			// Tab: toggle focus in split view
@@ -232,28 +245,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// v: toggle detail panel
 			if key.Matches(msg, keys.ToggleDetail) && (m.state == splitView || m.state == listView) {
-				m.showDetail = !m.showDetail
-				if m.showDetail {
-					m.state = splitView
-					// Resize list to panel width
-					listMsg := tea.WindowSizeMsg{Width: m.listPanelWidth(), Height: m.height}
-					var cmd tea.Cmd
-					m.list, cmd = m.list.Update(listMsg)
-					cmds := []tea.Cmd{cmd}
-					// Load detail for current cursor
-					if loadCmd := m.loadDetailForCursor(); loadCmd != nil {
-						cmds = append(cmds, loadCmd)
-					}
-					return m, tea.Batch(cmds...)
-				} else {
-					m.state = listView
-					m.focus = focusList
-					// Resize list to full width
-					listMsg := tea.WindowSizeMsg{Width: m.width, Height: m.height}
-					var cmd tea.Cmd
-					m.list, cmd = m.list.Update(listMsg)
-					return m, cmd
-				}
+				cmd := m.toggleDetailPanel()
+				return m, cmd
 			}
 
 			// Esc handling for split view
@@ -289,6 +282,15 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list.loading = true
 				return m, tea.Batch(cmd, m.list.spinner.Tick, m.list.loadTickets())
 			}
+			return m, cmd
+		}
+	}
+
+	// Route to command palette overlay
+	if m.cmdPalette.active {
+		if _, ok := msg.(tea.KeyMsg); ok {
+			var cmd tea.Cmd
+			m.cmdPalette, cmd = m.cmdPalette.Update(msg)
 			return m, cmd
 		}
 	}
@@ -480,6 +482,9 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case gotoCancelMsg:
 		return m, nil
+
+	case cmdPaletteActionMsg:
+		return m.handlePaletteAction(msg.action)
 	}
 
 	// Route to active view
@@ -694,10 +699,154 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *App) toggleDetailPanel() tea.Cmd {
+	m.showDetail = !m.showDetail
+	if m.showDetail {
+		m.state = splitView
+		listMsg := tea.WindowSizeMsg{Width: m.listPanelWidth(), Height: m.height}
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(listMsg)
+		cmds := []tea.Cmd{cmd}
+		if loadCmd := m.loadDetailForCursor(); loadCmd != nil {
+			cmds = append(cmds, loadCmd)
+		}
+		return tea.Batch(cmds...)
+	}
+	m.state = listView
+	m.focus = focusList
+	listMsg := tea.WindowSizeMsg{Width: m.width, Height: m.height}
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(listMsg)
+	return cmd
+}
+
+func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
+	switch action {
+	case "quit":
+		return m, tea.Quit
+	case "enter":
+		if len(m.list.items) > 0 {
+			id := m.list.items[m.list.cursor].ID
+			return m, func() tea.Msg { return showDetailMsg{id: id} }
+		}
+	case "goto":
+		var cmd tea.Cmd
+		m.gotoM, cmd = m.gotoM.open()
+		return m, cmd
+	case "search":
+		var cmd tea.Cmd
+		m.searchM, cmd = m.searchM.open()
+		return m, cmd
+	case "open":
+		var id int64
+		if m.state == detailView && m.detail.ticket != nil {
+			id = m.detail.ticket.ID
+		} else if len(m.list.items) > 0 {
+			id = m.list.items[m.list.cursor].ID
+		}
+		if id > 0 {
+			browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", m.subdomain, id))
+		}
+		return m, nil
+	case "comment":
+		var id int64
+		if m.state == detailView && m.detail.ticket != nil {
+			id = m.detail.ticket.ID
+		} else if len(m.list.items) > 0 {
+			id = m.list.items[m.list.cursor].ID
+		}
+		if id > 0 {
+			var cmd tea.Cmd
+			m.actions, cmd = m.actions.openComment(id)
+			return m, cmd
+		}
+	case "status":
+		var id int64
+		var status string
+		if m.state == detailView && m.detail.ticket != nil {
+			id = m.detail.ticket.ID
+			status = m.detail.ticket.Status
+		} else if len(m.list.items) > 0 {
+			t := m.list.items[m.list.cursor]
+			id = t.ID
+			status = t.Status
+		}
+		if id > 0 {
+			m.actions = m.actions.openStatus(id, status)
+			return m, nil
+		}
+	case "priority":
+		var id int64
+		var priority string
+		if m.state == detailView && m.detail.ticket != nil {
+			id = m.detail.ticket.ID
+			priority = m.detail.ticket.Priority
+		} else if len(m.list.items) > 0 {
+			t := m.list.items[m.list.cursor]
+			id = t.ID
+			priority = t.Priority
+		}
+		if id > 0 {
+			m.actions = m.actions.openPriority(id, priority)
+			return m, nil
+		}
+	case "toggle-detail":
+		cmd := m.toggleDetailPanel()
+		return m, cmd
+	case "toggle-chart":
+		m.list.showChart = !m.list.showChart
+		return m, nil
+	case "toggle-tags":
+		m.list.showTags = !m.list.showTags
+		return m, nil
+	case "toggle-focus":
+		if m.state == splitView && m.showDetail {
+			if m.focus == focusList {
+				m.focus = focusDetail
+			} else {
+				m.focus = focusList
+			}
+		}
+		return m, nil
+	case "refresh":
+		if !m.list.loading {
+			m.list.loading = true
+			cmds := []tea.Cmd{m.list.spinner.Tick, m.list.loadTicketsForRefresh()}
+			if m.list.autoRefresh {
+				m.list.refreshCountdown = refreshIntervalSeconds
+			}
+			return m, tea.Batch(cmds...)
+		}
+	case "auto-refresh":
+		m.list.autoRefresh = !m.list.autoRefresh
+		if m.list.autoRefresh {
+			m.list.refreshCountdown = refreshIntervalSeconds
+			return m, scheduleCountdownTick()
+		}
+		m.list.newTicketIDs = make(map[int64]bool)
+		return m, nil
+	case "load-more":
+		if m.list.hasMore && !m.list.loading {
+			m.list.loadingMore = true
+			if m.list.searchQuery != "" {
+				return m, m.list.loadMoreSearch()
+			}
+			return m, m.list.loadMoreTickets()
+		}
+	}
+	return m, nil
+}
+
 func (m App) View() string {
 	// Overlay: action modal
 	if m.actions.mode != actionNone {
 		overlay := m.actions.View()
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, overlay)
+	}
+
+	// Overlay: command palette
+	if m.cmdPalette.active {
+		overlay := m.cmdPalette.View()
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, overlay)
 	}
 
@@ -785,25 +934,14 @@ func (m App) helpBar() string {
 	var left string
 	switch m.state {
 	case listView:
-		nav := "↑↓/jk navigate  enter view  o open  / search"
-		if m.list.searchQuery != "" {
-			nav += "  esc clear search"
-		}
-		if m.list.hasMore {
-			nav += "  n load more"
-		}
-		left = nav + "  g goto  r auto-refresh  R refresh  c comment  s status  p priority  t tags  b chart  v split  q quit"
+		left = "↑↓ navigate  enter view  / search  ctrl+p commands  q quit"
 	case detailView:
-		left = "esc back  ↑↓ scroll  g goto  o open  c comment  s status  p priority  q quit"
+		left = "↑↓ scroll  esc back  ctrl+p commands  q quit"
 	case splitView:
 		if m.focus == focusList {
-			nav := "↑↓/jk navigate  enter view  tab focus  v hide panel  g goto  o open  / search"
-			if m.list.hasMore {
-				nav += "  n load more"
-			}
-			left = nav + "  t tags  b chart  c comment  s status  p priority  q quit"
+			left = "↑↓ navigate  enter view  tab focus  ctrl+p commands  q quit"
 		} else {
-			left = "↑↓ scroll  tab focus  esc back  g goto  o open  c comment  s status  p priority  q quit"
+			left = "↑↓ scroll  tab focus  esc back  ctrl+p commands  q quit"
 		}
 	}
 
@@ -817,6 +955,9 @@ func (m App) helpBar() string {
 	}
 	if userInfo == "" {
 		return left
+	}
+	if m.version != "" {
+		userInfo += "  " + m.version
 	}
 
 	// Right-align user info with padding

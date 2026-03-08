@@ -109,6 +109,21 @@ var (
 
 	chartLabelStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"})
+
+	cmdPaletteCategoryStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
+
+	cmdPaletteSelectedStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#1a1a2e"}).
+				Background(lipgloss.AdaptiveColor{Light: "#F9A87A", Dark: "#F9A87A"})
+
+	cmdPaletteShortcutStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"})
+
+	cmdPaletteItemStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#1F2937", Dark: "#E5E7EB"})
 )
 
 func styledStatus(status string) string {
