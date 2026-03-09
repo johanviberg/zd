@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- CC picker text input swallowing `j`, `k` and other vim-bound keys — arrow-only bindings now used for result navigation so all letters type correctly
+
 ## [0.4.5] - 2026-03-09
 
 ### Added

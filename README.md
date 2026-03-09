@@ -175,7 +175,7 @@ The TUI provides:
 - **Infinite scroll** — auto-loads the next page when reaching the bottom of the list; or press `n`
 - **Detail view** — press `enter` to view a ticket's details, description, and comments (scroll with arrows)
 - **Search** — press `/` to search using Zendesk search syntax or natural language (e.g. `status:open priority:high`), `esc` to clear
-- **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, submit with `ctrl+s`
+- **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, add CC recipients with `ctrl+a`, submit with `ctrl+s`
 - **Status/Priority** — press `s` or `p` to change status or priority via a picker
 - **Auto-refresh** — press `r` to toggle auto-refresh (polls every 5 min with countdown), `R` for an immediate refresh; new tickets are highlighted with a star and a terminal bell sounds
 - **Kanban board** — press `w` to toggle a kanban view that groups tickets by status into columns; navigate with arrow keys or `h`/`j`/`k`/`l`
