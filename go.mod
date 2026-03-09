@@ -1,6 +1,6 @@
 module github.com/johanviberg/zd
 
-go 1.25.0
+go 1.25
 
 require (
 	github.com/adrg/xdg v0.5.3
