@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-03-09
+
+### Added
+
+- Kanban board view in TUI — toggle with `w` to group tickets by status into columns
+- Responsive column layout adapting from 5 columns down to 1 based on terminal width
+- Per-column scrolling with scroll indicators
+- Cursor preservation across data refreshes
+- Left/Right (`h`/`l`) and Up/Down (`j`/`k`) navigation for kanban
+- Kanban toggle in command palette
+
 ### Fixed
 
 - Use valid go version format in go.mod
@@ -77,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/johanviberg/zd/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/johanviberg/zd/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/johanviberg/zd/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/johanviberg/zd/compare/v0.3.0...v0.4.0
