@@ -379,13 +379,20 @@ func (s *Store) generateTickets(r *rand.Rand) {
 
 			body := commentBodies[r.Intn(len(commentBodies))]
 
-			comments = append(comments, types.Comment{
+			comment := types.Comment{
 				ID:        i*100 + int64(j+1),
 				Body:      body,
 				Public:    &pub,
 				AuthorID:  authorID,
 				CreatedAt: commentTime.Truncate(time.Second),
-			})
+			}
+
+			// ~25% of comments get image attachments
+			if r.Float64() < 0.25 {
+				comment.Attachments = sampleAttachments(r, comment.ID)
+			}
+
+			comments = append(comments, comment)
 		}
 		s.Comments[i] = comments
 		s.nextID = i
@@ -432,6 +439,56 @@ func (s *Store) CollectCommentUsers(comments []types.Comment) []types.User {
 		}
 	}
 	return users
+}
+
+var sampleImageFiles = []struct {
+	name        string
+	contentType string
+	size        int64
+}{
+	{"screenshot.png", "image/png", 45200},
+	{"error-dialog.jpg", "image/jpeg", 128000},
+	{"form-fields.png", "image/png", 67500},
+	{"ui-bug.gif", "image/gif", 230400},
+	{"receipt.png", "image/png", 23100},
+	{"console-output.png", "image/png", 89000},
+}
+
+var sampleNonImageFiles = []struct {
+	name        string
+	contentType string
+	size        int64
+}{
+	{"debug-log.txt", "text/plain", 2048},
+	{"report.pdf", "application/pdf", 154000},
+}
+
+func sampleAttachments(r *rand.Rand, commentID int64) []types.Attachment {
+	var attachments []types.Attachment
+	// 1-2 image attachments
+	n := 1 + r.Intn(2)
+	for j := 0; j < n; j++ {
+		img := sampleImageFiles[r.Intn(len(sampleImageFiles))]
+		attachments = append(attachments, types.Attachment{
+			ID:          commentID*10 + int64(j+1),
+			FileName:    img.name,
+			ContentURL:  fmt.Sprintf("https://example.com/attachments/%d/%s", commentID, img.name),
+			ContentType: img.contentType,
+			Size:        img.size,
+		})
+	}
+	// Sometimes add a non-image attachment too
+	if r.Float64() < 0.3 {
+		other := sampleNonImageFiles[r.Intn(len(sampleNonImageFiles))]
+		attachments = append(attachments, types.Attachment{
+			ID:          commentID*10 + int64(n+1),
+			FileName:    other.name,
+			ContentURL:  fmt.Sprintf("https://example.com/attachments/%d/%s", commentID, other.name),
+			ContentType: other.contentType,
+			Size:        other.size,
+		})
+	}
+	return attachments
 }
 
 // DemoSubdomain returns the subdomain used for demo mode URLs.

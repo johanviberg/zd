@@ -141,6 +141,12 @@ var (
 				BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"}).
 				Padding(0, 1)
+
+	attachmentStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#0369A1", Dark: "#7DD3FC"})
+
+	attachmentImageStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
 )
 
 func styledStatus(status string) string {

@@ -182,6 +182,7 @@ The TUI provides:
 - **Status chart** — press `b` to toggle a vertical bar chart showing ticket status distribution, color-coded to match status labels
 - **Dynamic window title** — terminal tab title updates to reflect current context (ticket count, search query, or ticket detail)
 - **Go to ticket** — press `g` to jump directly to a ticket by ID
+- **Image attachments** — press `i` in detail view to browse image attachments across comments and open them in your default app (e.g. Preview on macOS)
 - **Open in browser** — press `o` to open the selected ticket in your default browser
 - **Status bar** — shows the authenticated user in the bottom bar
 - **Navigation** — `esc` to go back, `q` to quit

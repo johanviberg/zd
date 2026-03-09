@@ -1,6 +1,10 @@
 package types
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 type Ticket struct {
 	ID             int64         `json:"id"`
@@ -33,11 +37,32 @@ type Comment struct {
 }
 
 type Attachment struct {
-	ID          int64  `json:"id"`
-	FileName    string `json:"file_name"`
-	ContentURL  string `json:"content_url"`
-	ContentType string `json:"content_type"`
-	Size        int64  `json:"size"`
+	ID          int64        `json:"id"`
+	FileName    string       `json:"file_name"`
+	ContentURL  string       `json:"content_url"`
+	ContentType string       `json:"content_type"`
+	Size        int64        `json:"size"`
+	Inline      bool         `json:"inline"`
+	Width       int          `json:"width,omitempty"`
+	Height      int          `json:"height,omitempty"`
+	Thumbnails  []Attachment `json:"thumbnails,omitempty"`
+}
+
+// IsImage returns true if the attachment has an image content type.
+func (a Attachment) IsImage() bool {
+	return strings.HasPrefix(a.ContentType, "image/")
+}
+
+// HumanSize returns a human-readable file size string.
+func (a Attachment) HumanSize() string {
+	switch {
+	case a.Size >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(a.Size)/float64(1<<20))
+	case a.Size >= 1<<10:
+		return fmt.Sprintf("%d KB", a.Size>>10)
+	default:
+		return fmt.Sprintf("%d B", a.Size)
+	}
 }
 
 type CommentPage struct {

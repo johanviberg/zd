@@ -26,6 +26,7 @@ type keyMap struct {
 	ToggleKanban   key.Binding
 	GoTo           key.Binding
 	CommandPalette key.Binding
+	Images         key.Binding
 }
 
 var keys = keyMap{
@@ -120,5 +121,9 @@ var keys = keyMap{
 	CommandPalette: key.NewBinding(
 		key.WithKeys("ctrl+p"),
 		key.WithHelp("ctrl+p", "commands"),
+	),
+	Images: key.NewBinding(
+		key.WithKeys("i"),
+		key.WithHelp("i", "images"),
 	),
 }

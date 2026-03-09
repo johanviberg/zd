@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-03-09
+
+### Added
+
+- Image attachment support in TUI — inline indicators (📷/📎) below comments show attachments with filename and size
+- Image picker overlay — press `i` in detail view to browse image attachments and open them in the default system app
+- Extended `Attachment` type with `inline`, `width`, `height`, and `thumbnails` fields from Zendesk API
+- Demo mode now generates sample image attachments on ~25% of comments
+
 ## [0.4.4] - 2026-03-09
 
 ### Fixed
@@ -94,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.5...HEAD
+[0.4.5]: https://github.com/johanviberg/zd/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/johanviberg/zd/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/johanviberg/zd/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/johanviberg/zd/compare/v0.4.1...v0.4.2

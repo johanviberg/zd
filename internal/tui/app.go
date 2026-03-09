@@ -342,6 +342,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle cross-cutting messages
 	switch msg := msg.(type) {
+	case imageOpenMsg:
+		browser.Open(msg.url)
+		return m, nil
+
 	case currentUserMsg:
 		m.currentUser = msg.user
 		return m, nil
@@ -1107,10 +1111,16 @@ func (m App) helpBar() string {
 	case listView:
 		left = "↑↓ navigate  enter view  / search  ctrl+p commands  q quit"
 	case detailView:
-		left = "↑↓ scroll  esc back  ctrl+p commands  q quit"
+		if len(m.detail.imageAttachments) > 0 {
+			left = "↑↓ scroll  i images  esc back  ctrl+p commands  q quit"
+		} else {
+			left = "↑↓ scroll  esc back  ctrl+p commands  q quit"
+		}
 	case splitView:
 		if m.focus == focusList {
 			left = "↑↓ navigate  enter view  tab focus  ctrl+p commands  q quit"
+		} else if len(m.detail.imageAttachments) > 0 {
+			left = "↑↓ scroll  i images  tab focus  esc back  ctrl+p commands  q quit"
 		} else {
 			left = "↑↓ scroll  tab focus  esc back  ctrl+p commands  q quit"
 		}

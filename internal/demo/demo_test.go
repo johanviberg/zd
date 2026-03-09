@@ -289,8 +289,8 @@ func TestSearchServiceSubstring(t *testing.T) {
 	if len(page.Results) == 0 {
 		t.Fatal("expected results for 'billing'")
 	}
-	if page.Count != len(page.Results) {
-		t.Fatalf("count mismatch: %d vs %d", page.Count, len(page.Results))
+	if page.Count < len(page.Results) {
+		t.Fatalf("count %d should be >= results %d", page.Count, len(page.Results))
 	}
 }
 

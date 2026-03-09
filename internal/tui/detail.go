@@ -28,18 +28,20 @@ type commentsLoadedMsg struct {
 type goBackMsg struct{}
 
 type detailModel struct {
-	tickets    zendesk.TicketService
-	ticket     *types.Ticket
-	users      map[int64]types.User
-	comments   []types.Comment
-	viewport   viewport.Model
-	loading    bool
-	err        error
-	spinner    spinner.Model
-	width      int
-	height     int
-	ready      bool
-	expectedID int64
+	tickets          zendesk.TicketService
+	ticket           *types.Ticket
+	users            map[int64]types.User
+	comments         []types.Comment
+	viewport         viewport.Model
+	loading          bool
+	err              error
+	spinner          spinner.Model
+	width            int
+	height           int
+	ready            bool
+	expectedID       int64
+	imageAttachments []imageEntry
+	imagePicker      imagePickerModel
 }
 
 func newDetailModel(tickets zendesk.TicketService) detailModel {
@@ -114,6 +116,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		for _, u := range msg.users {
 			m.users[u.ID] = u
 		}
+		m.buildImageEntries()
 		if m.ready {
 			m.viewport.SetContent(m.renderContent())
 		}
@@ -129,10 +132,23 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			return m, cmd
 		}
 
+	case imagePickerCloseMsg:
+		m.imagePicker = m.imagePicker.close()
+
 	case tea.KeyMsg:
+		if m.imagePicker.active {
+			var cmd tea.Cmd
+			m.imagePicker, cmd = m.imagePicker.Update(msg)
+			return m, cmd
+		}
 		switch {
 		case key.Matches(msg, keys.Back):
 			return m, func() tea.Msg { return goBackMsg{} }
+		case key.Matches(msg, keys.Images):
+			if len(m.imageAttachments) > 0 {
+				m.imagePicker = m.imagePicker.open(m.imageAttachments)
+				return m, nil
+			}
 		}
 		if m.ready {
 			var cmd tea.Cmd
@@ -154,6 +170,10 @@ func (m detailModel) View() string {
 		return ""
 	}
 
+	if m.imagePicker.active {
+		return m.imagePicker.View()
+	}
+
 	header := subtitleStyle.Render("← esc") + "   " +
 		titleStyle.Render(fmt.Sprintf("Ticket #%d", m.ticket.ID))
 
@@ -169,6 +189,10 @@ func (m detailModel) ViewPanel() string {
 	}
 	if !m.ready || m.ticket == nil {
 		return subtitleStyle.Render("Select a ticket to view details")
+	}
+
+	if m.imagePicker.active {
+		return m.imagePicker.View()
 	}
 
 	header := titleStyle.Render(fmt.Sprintf("Ticket #%d", m.ticket.ID))
@@ -215,6 +239,7 @@ func (m detailModel) renderContent() string {
 		var commentLines strings.Builder
 		commentLines.WriteString(headerStyle.Render(fmt.Sprintf(" Comments (%d)", len(m.comments))) + "\n")
 
+		attachIdx := 0
 		for i, c := range m.comments {
 			author := m.userName(c.AuthorID)
 			timeAgo := relativeTime(c.CreatedAt)
@@ -228,6 +253,21 @@ func (m detailModel) renderContent() string {
 
 			commentLines.WriteString(authorLine + "\n")
 			commentLines.WriteString(c.Body + "\n")
+
+			if len(c.Attachments) > 0 {
+				for _, a := range c.Attachments {
+					attachIdx++
+					icon := "📎"
+					style := attachmentStyle
+					if a.IsImage() {
+						icon = "📷"
+						style = attachmentImageStyle
+					}
+					line := style.Render(fmt.Sprintf("  %s [%d] %s (%s)", icon, attachIdx, a.FileName, a.HumanSize()))
+					commentLines.WriteString(line + "\n")
+				}
+			}
+
 			if i < len(m.comments)-1 {
 				commentLines.WriteString("\n")
 			}
@@ -238,6 +278,24 @@ func (m detailModel) renderContent() string {
 	}
 
 	return b.String()
+}
+
+func (m *detailModel) buildImageEntries() {
+	m.imageAttachments = nil
+	idx := 0
+	for _, c := range m.comments {
+		author := m.userName(c.AuthorID)
+		for _, a := range c.Attachments {
+			idx++
+			if a.IsImage() {
+				m.imageAttachments = append(m.imageAttachments, imageEntry{
+					index:      idx,
+					attachment: a,
+					authorName: author,
+				})
+			}
+		}
+	}
 }
 
 func (m detailModel) renderField(label, value string) string {
