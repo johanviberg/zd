@@ -326,6 +326,42 @@ func TestKanbanUpdate_Enter(t *testing.T) {
 	}
 }
 
+func TestScrollFollowsCursor(t *testing.T) {
+	m := newKanbanModel()
+	m.width = 120
+	m.height = 30 // with header(3) + chrome(7) + cardHeight(6): fits (30-3-7)/6 = 3 cards
+
+	// Put 20 tickets in the "open" column
+	var items []types.Ticket
+	for i := 1; i <= 20; i++ {
+		items = append(items, makeTicket(int64(i), "open", "normal", "Ticket"))
+	}
+	m.rebuildColumns(items)
+
+	// Move to open column
+	m, _ = m.moveRight()
+
+	vc := m.visibleCards()
+	if vc < 2 {
+		t.Fatalf("expected at least 2 visible cards, got %d", vc)
+	}
+
+	// Navigate down to row 10
+	for i := 0; i < 10; i++ {
+		m, _ = m.moveDown()
+	}
+	if m.row != 10 {
+		t.Fatalf("expected row 10, got %d", m.row)
+	}
+
+	// Scroll offset must have moved so the selected card is visible
+	ci := m.visibleCols[m.col]
+	scroll := m.scrolls[ci]
+	if m.row < scroll || m.row >= scroll+vc {
+		t.Errorf("selected row %d not visible: scroll=%d, visibleCards=%d", m.row, scroll, vc)
+	}
+}
+
 func TestVisibleColumns_NarrowWidth(t *testing.T) {
 	m := newKanbanModel()
 	m.height = 40

@@ -15,7 +15,7 @@ import (
 var kanbanStatuses = statusOrder[:5]
 
 const (
-	kanbanCardHeight   = 4 // 3 content lines + 1 gap
+	kanbanCardHeight   = 6 // 3 content lines + 2 border (rounded) + 1 gap
 	kanbanHeaderHeight = 3 // header text + count + divider
 )
 
@@ -190,7 +190,7 @@ func (m *kanbanModel) clampScroll(ci int) {
 }
 
 func (m *kanbanModel) visibleCards() int {
-	vc := (m.height - kanbanHeaderHeight - 2) / kanbanCardHeight
+	vc := (m.height - kanbanHeaderHeight - 7) / kanbanCardHeight
 	if vc < 1 {
 		vc = 1
 	}
