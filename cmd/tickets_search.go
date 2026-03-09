@@ -93,9 +93,9 @@ Natural language is also supported:
 			items[i] = enrichTicket(r.Ticket, userMap)
 		}
 
-		headers := []string{"id", "status", "priority", "subject", "updated_at"}
+		headers := []string{"id", "status", "priority", "subject", "updated_at", "created_at"}
 		if len(page.Users) > 0 {
-			headers = []string{"id", "status", "priority", "requester_name", "assignee_name", "subject", "updated_at"}
+			headers = []string{"id", "status", "priority", "requester_name", "assignee_name", "subject", "updated_at", "created_at"}
 		}
 		if err := formatter.FormatList(os.Stdout, items, headers); err != nil {
 			return err
