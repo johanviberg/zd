@@ -394,7 +394,7 @@ func (m kanbanModel) renderColumn(ci int, isActive bool, colWidth int, visCards 
 }
 
 func (m kanbanModel) renderCard(t types.Ticket, selected bool, colWidth int, status string) string {
-	innerW := colWidth - 4 // border + padding
+	innerW := colWidth - 4 // card border (2) is outside lipgloss Width; padding (2) is inside
 	if innerW < 6 {
 		innerW = 6
 	}
@@ -428,6 +428,9 @@ func (m kanbanModel) renderCard(t types.Ticket, selected bool, colWidth int, sta
 
 	content := idStr + "\n" + subject + "\n" + line3
 
+	// lipgloss v1 Width excludes borders; subtract 2 for left+right border
+	// so the rendered card width matches colWidth exactly.
+	cardW := colWidth - 2
 	if selected {
 		color, ok := statusColors[status]
 		if !ok {
@@ -435,8 +438,8 @@ func (m kanbanModel) renderCard(t types.Ticket, selected bool, colWidth int, sta
 		}
 		return kanbanCardSelectedStyle.
 			BorderForeground(color).
-			Width(colWidth).
+			Width(cardW).
 			Render(content)
 	}
-	return kanbanCardStyle.Width(colWidth).Render(content)
+	return kanbanCardStyle.Width(cardW).Render(content)
 }
