@@ -43,7 +43,7 @@ var tuiCmd = &cobra.Command{
 			}
 		}
 
-		app := tui.NewApp(ticketSvc, searchSvc, userSvc, subdomain)
+		app := tui.NewApp(ticketSvc, searchSvc, userSvc, subdomain, buildVersion)
 		p := tea.NewProgram(app, tea.WithAltScreen())
 
 		if _, err := p.Run(); err != nil {

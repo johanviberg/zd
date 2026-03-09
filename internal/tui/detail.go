@@ -68,7 +68,8 @@ func (m detailModel) loadTicket(id int64) tea.Cmd {
 func (m detailModel) loadComments(id int64) tea.Cmd {
 	return func() tea.Msg {
 		page, err := m.tickets.ListComments(context.Background(), id, &types.ListCommentsOptions{
-			Include: "users",
+			Include:   "users",
+			SortOrder: "desc",
 		})
 		if err != nil {
 			return errMsg{err}
