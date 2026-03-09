@@ -16,11 +16,13 @@ No external test dependencies — tests use `net/http/httptest` with JSON fixtur
 
 ### Commits
 
-Conventional Commits required (enforced by lefthook pre-commit hook):
+Conventional Commits required (enforced by lefthook commit-msg hook):
 ```
 <type>[optional scope][!]: <description>
 ```
 Types: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
+
+The lefthook pre-commit hook runs `go build`, `gofmt` check, `go vet`, and `go test` in parallel. Ensure `gofmt -w .` is run before committing.
 
 ## Architecture
 
@@ -58,14 +60,37 @@ RetryTransport (exponential backoff + jitter for 429/5xx, max 3 retries)
 
 `config.ConfigDir()` reads `XDG_CONFIG_HOME` env directly (not the `adrg/xdg` cached value) for test compatibility. Config is per-profile under `profiles.<name>` in `config.yaml`.
 
+### MCP server
+
+`cmd/mcp.go` + `cmd/mcp_tools.go` implement a built-in MCP server (`zd mcp serve`) using `modelcontextprotocol/go-sdk`. Tool input types use `jsonschema` struct tags for automatic schema generation. Tools reuse `newTicketService`/`newSearchService` from the command layer.
+
+### TUI
+
+`internal/tui/` is a Bubble Tea (`charmbracelet/bubbletea`) app with split-panel layout (list + detail), search, comment, status/priority pickers, auto-refresh, and a bar chart view. The `App` struct holds service interfaces (`zendesk.TicketService`, `zendesk.SearchService`) and delegates to the same service layer as CLI commands.
+
+### NLQ (Natural Language Query)
+
+`internal/nlq/` translates natural language like "urgent tickets assigned to jane" into Zendesk search syntax (`priority:urgent assignee:jane`) purely locally — no LLM or API key. Queries already in Zendesk syntax pass through unchanged. Used by `tickets search` and TUI search.
+
+### Demo mode
+
+`internal/demo/` provides a `Store` with 100+ seeded synthetic tickets and implements the service interfaces (`TicketService`, `SearchService`, `UserService`). Activated via `--demo` flag; checked in `newTicketService`/`newSearchService` before credential resolution.
+
 ### Key packages
 
-- `cmd/` — Cobra commands. Each subcommand file registers itself via `init()`. `tickets.go` has shared `newTicketService`/`newSearchService` factory functions.
-- `internal/api/` — `Client` (HTTP), `TicketService`, `SearchService`, `RetryTransport`, cursor-based pagination.
+- `cmd/` — Cobra commands. Each subcommand file registers itself via `init()`. `tickets.go` has shared `newTicketService`/`newSearchService`/`newUserService` factory functions. `mcp_tools.go` registers MCP tool handlers.
+- `internal/api/` — `Client` (HTTP), `TicketService`, `SearchService`, `ArticleService`, `UserService`, `RetryTransport`, cursor-based pagination.
 - `internal/auth/` — `AuthTransport` RoundTripper, credential CRUD (`credentials.json`), `OAuthFlow` (browser-based).
 - `internal/output/` — `Formatter` interface with JSON/NDJSON/Text implementations, field projection via `projectFields`.
-- `internal/types/` — Domain types (`Ticket`, `TicketPage`, `SearchPage`), `AppError`, pagination options.
-- `pkg/zendesk/` — Public interfaces (`TicketService`, `SearchService`) used by commands.
+- `internal/types/` — Domain types (`Ticket`, `Article`, `User`, `TicketPage`, `SearchPage`), `AppError`, pagination options.
+- `internal/tui/` — Bubble Tea interactive terminal UI.
+- `internal/nlq/` — Local natural language → Zendesk query syntax translator.
+- `internal/demo/` — Synthetic data store for `--demo` mode.
+- `pkg/zendesk/` — Public interfaces (`TicketService`, `SearchService`, `UserService`, `ArticleService`) used by commands and MCP tools.
+
+### User enrichment
+
+`buildUserMap` + `enrichTicket` in `cmd/tickets.go` handle `--include users` sideloading: user IDs from tickets are resolved to names/emails via a map built from the sideloaded `users` array, then injected as `requester_name`, `requester_email`, `assignee_name`, `assignee_email`. The MCP tools do this automatically.
 
 ### Test pattern
 
