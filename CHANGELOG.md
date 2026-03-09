@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- CC picker text input swallowing `j`, `k` and other vim-bound keys — arrow-only bindings now used for result navigation so all letters type correctly
-
 ## [0.4.5] - 2026-03-09
 
 ### Added
@@ -19,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Image picker overlay — press `i` in detail view to browse image attachments and open them in the default system app
 - Extended `Attachment` type with `inline`, `width`, `height`, and `thumbnails` fields from Zendesk API
 - Demo mode now generates sample image attachments on ~25% of comments
+
+### Fixed
+
+- CC picker text input swallowing `j`, `k` and other vim-bound keys — arrow-only bindings now used for result navigation so all letters type correctly
 
 ## [0.4.4] - 2026-03-09
 
