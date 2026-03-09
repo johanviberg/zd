@@ -8,7 +8,9 @@
 
 An unofficial, agent-friendly command-line interface for Zendesk's ticketing REST API. Built for both humans and AI agents.
 
-![zd TUI screenshot](zd.png)
+![zd list view](zd-list.png)
+
+![zd kanban view](zd-kanban.png)
 
 ## What it does
 
@@ -176,6 +178,7 @@ The TUI provides:
 - **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, submit with `ctrl+s`
 - **Status/Priority** — press `s` or `p` to change status or priority via a picker
 - **Auto-refresh** — press `r` to toggle auto-refresh (polls every 5 min with countdown), `R` for an immediate refresh; new tickets are highlighted with a star and a terminal bell sounds
+- **Kanban board** — press `w` to toggle a kanban view that groups tickets by status into columns; navigate with arrow keys or `h`/`j`/`k`/`l`
 - **Status chart** — press `b` to toggle a vertical bar chart showing ticket status distribution, color-coded to match status labels
 - **Dynamic window title** — terminal tab title updates to reflect current context (ticket count, search query, or ticket detail)
 - **Go to ticket** — press `g` to jump directly to a ticket by ID
