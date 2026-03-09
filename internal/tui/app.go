@@ -24,6 +24,7 @@ const (
 	listView viewState = iota
 	detailView
 	splitView
+	kanbanView
 )
 
 type panelFocus int
@@ -42,8 +43,10 @@ type App struct {
 	subdomain   string
 	currentUser *types.User
 	state       viewState
+	prevState   viewState // saved state when entering detail from kanban
 	list        listModel
 	detail      detailModel
+	kanban      kanbanModel
 	actions     actionsModel
 	searchM     searchModel
 	gotoM       gotoModel
@@ -67,6 +70,7 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 		focus:      focusList,
 		list:       newListModel(tickets, search),
 		detail:     newDetailModel(tickets),
+		kanban:     newKanbanModel(),
 		actions:    newActionsModel(tickets),
 		searchM:    newSearchModel(),
 		gotoM:      newGotoModel(),
@@ -146,7 +150,7 @@ func (m App) windowTitle() string {
 			return fmt.Sprintf("zd — #%d: %s", m.detail.ticket.ID, subject)
 		}
 		return "zd — Loading..."
-	case listView, splitView:
+	case listView, splitView, kanbanView:
 		if m.list.loading {
 			return "zd — Loading..."
 		}
@@ -191,6 +195,17 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = listView
 			m.showDetail = false
 		}
+
+		// Kanban too narrow — switch back to list
+		if m.width < 40 && m.state == kanbanView {
+			m.state = listView
+		}
+
+		// Update kanban dimensions
+		m.kanban.width = m.width
+		m.kanban.height = m.height
+		m.kanban.recomputeVisible()
+		m.kanban.clampCursor()
 
 		var cmds []tea.Cmd
 		var cmd tea.Cmd
@@ -243,6 +258,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+			// w: toggle kanban view
+			if key.Matches(msg, keys.ToggleKanban) && (m.state == listView || m.state == splitView || m.state == kanbanView) {
+				return m.toggleKanbanView()
+			}
+
 			// v: toggle detail panel
 			if key.Matches(msg, keys.ToggleDetail) && (m.state == splitView || m.state == listView) {
 				cmd := m.toggleDetailPanel()
@@ -265,6 +285,13 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Clear search results on esc in list view
 			if msg.String() == "esc" && m.state == listView && m.list.searchQuery != "" {
+				m.list.searchQuery = ""
+				m.list.loading = true
+				return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
+			}
+
+			// Clear search results on esc in kanban view
+			if msg.String() == "esc" && m.state == kanbanView && m.list.searchQuery != "" {
 				m.list.searchQuery = ""
 				m.list.loading = true
 				return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
@@ -333,7 +360,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.list.refreshCountdown--
 		if m.list.refreshCountdown <= 0 {
-			if (m.state == listView || m.state == splitView) && m.list.searchQuery == "" && !m.list.loading {
+			if (m.state == listView || m.state == splitView || m.state == kanbanView) && m.list.searchQuery == "" && !m.list.loading {
 				return m, m.list.loadTicketsForRefresh()
 			}
 			m.list.refreshCountdown = refreshIntervalSeconds
@@ -350,6 +377,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if loadCmd := m.loadDetailForCursor(); loadCmd != nil {
 				cmds = append(cmds, loadCmd)
 			}
+		}
+		// Rebuild kanban columns
+		if m.state == kanbanView {
+			m.kanban.rebuildColumns(m.list.items)
 		}
 		// Ring bell when new tickets found
 		if m.list.lastRefreshNewCount > 0 {
@@ -378,6 +409,9 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detail.height = m.height
 			}
 		}
+		if m.state == kanbanView {
+			m.kanban.rebuildColumns(m.list.items)
+		}
 		return m, tea.Batch(cmds...)
 
 	case searchResultsMsg:
@@ -401,16 +435,25 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detail.height = m.height
 			}
 		}
+		if m.state == kanbanView {
+			m.kanban.rebuildColumns(m.list.items)
+		}
 		return m, tea.Batch(cmds...)
 
 	case moreTicketsLoadedMsg:
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
+		if m.state == kanbanView {
+			m.kanban.rebuildColumns(m.list.items)
+		}
 		return m, cmd
 
 	case moreSearchResultsMsg:
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
+		if m.state == kanbanView {
+			m.kanban.rebuildColumns(m.list.items)
+		}
 		return m, cmd
 
 	case cursorChangedMsg:
@@ -425,6 +468,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case showDetailMsg:
 		delete(m.list.newTicketIDs, msg.id)
+		m.prevState = m.state
 		if m.state == splitView {
 			// If detail already has this ticket, just switch to full-screen
 			if m.detail.ticket != nil && m.detail.ticket.ID == msg.id {
@@ -444,6 +488,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), tea.SetWindowTitle("zd — Loading..."))
 
 	case goBackMsg:
+		if m.prevState == kanbanView {
+			m.state = kanbanView
+			return m, m.updateWindowTitle()
+		}
 		if m.showDetail {
 			m.state = splitView
 			m.focus = focusList
@@ -694,6 +742,74 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.detail, cmd = m.detail.Update(msg)
 		return m, cmd
+
+	case kanbanView:
+		if msg, ok := msg.(tea.KeyMsg); ok {
+			// Action keys using selected ticket
+			if t := m.kanban.selectedTicket(); t != nil {
+				switch {
+				case key.Matches(msg, keys.Comment):
+					var cmd tea.Cmd
+					m.actions, cmd = m.actions.openComment(t.ID)
+					return m, cmd
+				case key.Matches(msg, keys.Status):
+					m.actions = m.actions.openStatus(t.ID, t.Status)
+					return m, nil
+				case key.Matches(msg, keys.Priority):
+					m.actions = m.actions.openPriority(t.ID, t.Priority)
+					return m, nil
+				case key.Matches(msg, keys.Open):
+					browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", m.subdomain, t.ID))
+					return m, nil
+				}
+			}
+
+			switch {
+			case key.Matches(msg, keys.Search):
+				var cmd tea.Cmd
+				m.searchM, cmd = m.searchM.open()
+				return m, cmd
+			case key.Matches(msg, keys.GoTo):
+				var cmd tea.Cmd
+				m.gotoM, cmd = m.gotoM.open()
+				return m, cmd
+			case key.Matches(msg, keys.Refresh):
+				m.list.autoRefresh = !m.list.autoRefresh
+				if m.list.autoRefresh {
+					m.list.refreshCountdown = refreshIntervalSeconds
+					return m, scheduleCountdownTick()
+				}
+				m.list.newTicketIDs = make(map[int64]bool)
+				return m, nil
+			case key.Matches(msg, keys.ManualRefresh):
+				if !m.list.loading {
+					m.list.loading = true
+					cmds := []tea.Cmd{m.list.spinner.Tick, m.list.loadTicketsForRefresh()}
+					if m.list.autoRefresh {
+						m.list.refreshCountdown = refreshIntervalSeconds
+					}
+					return m, tea.Batch(cmds...)
+				}
+			case key.Matches(msg, keys.NextPage):
+				if m.list.hasMore && !m.list.loadingMore {
+					m.list.loadingMore = true
+					if m.list.searchQuery != "" {
+						return m, m.list.loadMoreSearch()
+					}
+					return m, m.list.loadMoreTickets()
+				}
+			}
+
+			// Route navigation to kanban model
+			var cmd tea.Cmd
+			m.kanban, cmd = m.kanban.Update(msg)
+			return m, cmd
+		}
+
+		// Non-key messages: route to list (for spinner ticks etc.)
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
@@ -720,12 +836,43 @@ func (m *App) toggleDetailPanel() tea.Cmd {
 	return cmd
 }
 
+func (m *App) toggleKanbanView() (tea.Model, tea.Cmd) {
+	if m.state == kanbanView {
+		// Return to previous list/split state
+		if m.showDetail {
+			m.state = splitView
+			m.focus = focusList
+			listMsg := tea.WindowSizeMsg{Width: m.listPanelWidth(), Height: m.height}
+			var cmd tea.Cmd
+			m.list, cmd = m.list.Update(listMsg)
+			cmds := []tea.Cmd{cmd, m.updateWindowTitle()}
+			if loadCmd := m.loadDetailForCursor(); loadCmd != nil {
+				cmds = append(cmds, loadCmd)
+			}
+			return m, tea.Batch(cmds...)
+		}
+		m.state = listView
+		return m, m.updateWindowTitle()
+	}
+	// Enter kanban view
+	m.kanban.width = m.width
+	m.kanban.height = m.height
+	m.kanban.rebuildColumns(m.list.items)
+	m.state = kanbanView
+	return m, m.updateWindowTitle()
+}
+
 func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 	switch action {
 	case "quit":
 		return m, tea.Quit
 	case "enter":
-		if len(m.list.items) > 0 {
+		if m.state == kanbanView {
+			if t := m.kanban.selectedTicket(); t != nil {
+				id := t.ID
+				return m, func() tea.Msg { return showDetailMsg{id: id} }
+			}
+		} else if len(m.list.items) > 0 {
 			id := m.list.items[m.list.cursor].ID
 			return m, func() tea.Msg { return showDetailMsg{id: id} }
 		}
@@ -741,6 +888,10 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 		var id int64
 		if m.state == detailView && m.detail.ticket != nil {
 			id = m.detail.ticket.ID
+		} else if m.state == kanbanView {
+			if t := m.kanban.selectedTicket(); t != nil {
+				id = t.ID
+			}
 		} else if len(m.list.items) > 0 {
 			id = m.list.items[m.list.cursor].ID
 		}
@@ -752,6 +903,10 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 		var id int64
 		if m.state == detailView && m.detail.ticket != nil {
 			id = m.detail.ticket.ID
+		} else if m.state == kanbanView {
+			if t := m.kanban.selectedTicket(); t != nil {
+				id = t.ID
+			}
 		} else if len(m.list.items) > 0 {
 			id = m.list.items[m.list.cursor].ID
 		}
@@ -766,6 +921,11 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 		if m.state == detailView && m.detail.ticket != nil {
 			id = m.detail.ticket.ID
 			status = m.detail.ticket.Status
+		} else if m.state == kanbanView {
+			if t := m.kanban.selectedTicket(); t != nil {
+				id = t.ID
+				status = t.Status
+			}
 		} else if len(m.list.items) > 0 {
 			t := m.list.items[m.list.cursor]
 			id = t.ID
@@ -781,6 +941,11 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 		if m.state == detailView && m.detail.ticket != nil {
 			id = m.detail.ticket.ID
 			priority = m.detail.ticket.Priority
+		} else if m.state == kanbanView {
+			if t := m.kanban.selectedTicket(); t != nil {
+				id = t.ID
+				priority = t.Priority
+			}
 		} else if len(m.list.items) > 0 {
 			t := m.list.items[m.list.cursor]
 			id = t.ID
@@ -790,6 +955,8 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 			m.actions = m.actions.openPriority(id, priority)
 			return m, nil
 		}
+	case "toggle-kanban":
+		return m.toggleKanbanView()
 	case "toggle-detail":
 		cmd := m.toggleDetailPanel()
 		return m, cmd
@@ -855,23 +1022,25 @@ func (m App) View() string {
 	// Goto overlay (shown above list when active)
 	if m.gotoM.active {
 		content = m.gotoM.View() + "\n\n"
-		if m.state == listView || m.state == splitView {
-			if m.state == splitView {
-				content += m.renderSplitView()
-			} else {
-				content += m.list.View()
-			}
-		} else if m.state == detailView {
+		switch m.state {
+		case splitView:
+			content += m.renderSplitView()
+		case kanbanView:
+			content += m.kanban.View()
+		case detailView:
 			content += m.detail.View()
+		default:
+			content += m.list.View()
 		}
 	} else if m.searchM.active {
 		content = m.searchM.View() + "\n\n"
-		if m.state == listView || m.state == splitView {
-			if m.state == splitView {
-				content += m.renderSplitView()
-			} else {
-				content += m.list.View()
-			}
+		switch m.state {
+		case splitView:
+			content += m.renderSplitView()
+		case kanbanView:
+			content += m.kanban.View()
+		default:
+			content += m.list.View()
 		}
 	} else {
 		switch m.state {
@@ -881,6 +1050,8 @@ func (m App) View() string {
 			content = m.detail.View()
 		case splitView:
 			content = m.renderSplitView()
+		case kanbanView:
+			content = m.kanban.View()
 		}
 	}
 
@@ -943,6 +1114,8 @@ func (m App) helpBar() string {
 		} else {
 			left = "↑↓ scroll  tab focus  esc back  ctrl+p commands  q quit"
 		}
+	case kanbanView:
+		left = "←→ columns  ↑↓ navigate  enter view  w list  / search  ctrl+p commands  q quit"
 	}
 
 	if m.currentUser == nil || m.width == 0 {

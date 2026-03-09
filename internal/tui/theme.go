@@ -124,6 +124,23 @@ var (
 
 	cmdPaletteItemStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#1F2937", Dark: "#E5E7EB"})
+
+	kanbanCardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"}).
+			Padding(0, 1)
+
+	kanbanCardSelectedStyle = lipgloss.NewStyle().
+				Bold(true).
+				Border(lipgloss.RoundedBorder()).
+				Padding(0, 1)
+
+	kanbanColumnHeaderStyle = lipgloss.NewStyle().
+				Bold(true).
+				BorderBottom(true).
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"}).
+				Padding(0, 1)
 )
 
 func styledStatus(status string) string {

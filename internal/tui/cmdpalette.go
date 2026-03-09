@@ -64,6 +64,9 @@ func (m *cmdPaletteModel) open(state viewState, focus panelFocus, showDetail boo
 	}
 
 	// Display
+	if state == listView || state == splitView || state == kanbanView {
+		items = append(items, cmdItem{"Toggle Kanban view", "w", "Display", "toggle-kanban"})
+	}
 	if state == listView || state == splitView {
 		items = append(items, cmdItem{"Toggle detail panel", "v", "Display", "toggle-detail"})
 		items = append(items, cmdItem{"Toggle chart", "b", "Display", "toggle-chart"})
