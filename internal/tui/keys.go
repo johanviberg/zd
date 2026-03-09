@@ -5,6 +5,8 @@ import "github.com/charmbracelet/bubbles/key"
 type keyMap struct {
 	Up             key.Binding
 	Down           key.Binding
+	Left           key.Binding
+	Right          key.Binding
 	Enter          key.Binding
 	Back           key.Binding
 	Quit           key.Binding
@@ -21,6 +23,7 @@ type keyMap struct {
 	ToggleDetail   key.Binding
 	ToggleChart    key.Binding
 	ToggleTags     key.Binding
+	ToggleKanban   key.Binding
 	GoTo           key.Binding
 	CommandPalette key.Binding
 }
@@ -33,6 +36,14 @@ var keys = keyMap{
 	Down: key.NewBinding(
 		key.WithKeys("down", "j"),
 		key.WithHelp("↓/j", "down"),
+	),
+	Left: key.NewBinding(
+		key.WithKeys("left", "h"),
+		key.WithHelp("←/h", "left"),
+	),
+	Right: key.NewBinding(
+		key.WithKeys("right", "l"),
+		key.WithHelp("→/l", "right"),
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
@@ -97,6 +108,10 @@ var keys = keyMap{
 	ToggleTags: key.NewBinding(
 		key.WithKeys("t"),
 		key.WithHelp("t", "toggle tags"),
+	),
+	ToggleKanban: key.NewBinding(
+		key.WithKeys("w"),
+		key.WithHelp("w", "kanban view"),
 	),
 	GoTo: key.NewBinding(
 		key.WithKeys("g"),
