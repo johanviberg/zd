@@ -3,12 +3,25 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
 )
+
+func parseCollaboratorsFromStrings(values []string) []types.CollaboratorEntry {
+	var entries []types.CollaboratorEntry
+	for _, v := range values {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			entries = append(entries, types.CollaboratorEntry{UserID: id})
+		} else {
+			entries = append(entries, types.CollaboratorEntry{Email: v})
+		}
+	}
+	return entries
+}
 
 // --- Input types ---
 
@@ -43,6 +56,7 @@ type UpdateTicketInput struct {
 	Priority   string   `json:"priority,omitempty" jsonschema:"Set priority: urgent, high, normal, low"`
 	AddTags    []string `json:"add_tags,omitempty" jsonschema:"Tags to add"`
 	RemoveTags []string `json:"remove_tags,omitempty" jsonschema:"Tags to remove"`
+	CC         []string `json:"cc,omitempty" jsonschema:"Add CCs to the comment (emails or user IDs). Ignored for internal notes"`
 }
 
 type DeleteTicketInput struct {
@@ -163,6 +177,10 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 				Body:   args.Comment,
 				Public: &public,
 			}
+		}
+
+		if len(args.CC) > 0 {
+			updateReq.AdditionalCollaborators = parseCollaboratorsFromStrings(args.CC)
 		}
 
 		ticket, err := svc.Update(ctx, args.ID, updateReq)

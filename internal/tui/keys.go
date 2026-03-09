@@ -27,6 +27,7 @@ type keyMap struct {
 	GoTo           key.Binding
 	CommandPalette key.Binding
 	Images         key.Binding
+	AddCC          key.Binding
 }
 
 var keys = keyMap{
@@ -125,5 +126,9 @@ var keys = keyMap{
 	Images: key.NewBinding(
 		key.WithKeys("i"),
 		key.WithHelp("i", "images"),
+	),
+	AddCC: key.NewBinding(
+		key.WithKeys("ctrl+a"),
+		key.WithHelp("ctrl+a", "add CC"),
 	),
 }

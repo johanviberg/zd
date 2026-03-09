@@ -10,6 +10,18 @@ import (
 	"github.com/johanviberg/zd/internal/types"
 )
 
+func parseCollaborators(values []string) []types.CollaboratorEntry {
+	var entries []types.CollaboratorEntry
+	for _, v := range values {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			entries = append(entries, types.CollaboratorEntry{UserID: id})
+		} else {
+			entries = append(entries, types.CollaboratorEntry{Email: v})
+		}
+	}
+	return entries
+}
+
 func init() {
 	ticketsCmd.AddCommand(ticketsUpdateCmd)
 
@@ -25,6 +37,7 @@ func init() {
 	ticketsUpdateCmd.Flags().StringSlice("remove-tags", nil, "Remove tags")
 	ticketsUpdateCmd.Flags().StringArray("custom-field", nil, "Custom field (key=value, repeatable)")
 	ticketsUpdateCmd.Flags().Bool("safe-update", false, "Use safe update (conflict detection)")
+	ticketsUpdateCmd.Flags().StringSlice("cc", nil, "Add CCs (emails or user IDs, comma-separated)")
 }
 
 var ticketsUpdateCmd = &cobra.Command{
@@ -80,6 +93,14 @@ var ticketsUpdateCmd = &cobra.Command{
 			req.Comment = &types.Comment{
 				Body:   body,
 				Public: &public,
+			}
+		}
+
+		if cmd.Flags().Changed("cc") {
+			ccVals, _ := cmd.Flags().GetStringSlice("cc")
+			req.AdditionalCollaborators = parseCollaborators(ccVals)
+			if req.Comment != nil && req.Comment.Public != nil && !*req.Comment.Public {
+				fmt.Fprintln(os.Stderr, "Warning: --cc has no effect on internal notes")
 			}
 		}
 

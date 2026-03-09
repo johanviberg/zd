@@ -71,7 +71,7 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 		list:       newListModel(tickets, search),
 		detail:     newDetailModel(tickets),
 		kanban:     newKanbanModel(),
-		actions:    newActionsModel(tickets),
+		actions:    newActionsModel(tickets, users),
 		searchM:    newSearchModel(),
 		gotoM:      newGotoModel(),
 		cmdPalette: newCmdPaletteModel(),
@@ -302,7 +302,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Route to active action overlay first
 	if m.actions.mode != actionNone {
 		switch msg.(type) {
-		case tea.KeyMsg, spinner.TickMsg, ticketUpdatedMsg, actionErrMsg:
+		case tea.KeyMsg, spinner.TickMsg, ticketUpdatedMsg, actionErrMsg, ccAutocompleteMsg, ccAutocompleteErrMsg:
 			var cmd tea.Cmd
 			m.actions, cmd = m.actions.Update(msg)
 			if _, ok := msg.(ticketUpdatedMsg); ok {

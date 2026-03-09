@@ -147,6 +147,19 @@ var (
 
 	attachmentImageStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
+
+	ccChipStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#1E40AF", Dark: "#93C5FD"}).
+			Background(lipgloss.AdaptiveColor{Light: "#DBEAFE", Dark: "#1E3A5F"}).
+			Padding(0, 1)
+
+	ccDisabledStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"}).
+			Italic(true)
+
+	ccResultHighlightStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#FAFAFA"})
 )
 
 func styledStatus(status string) string {

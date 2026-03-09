@@ -2,6 +2,7 @@ package demo
 
 import (
 	"context"
+	"strings"
 
 	"github.com/johanviberg/zd/internal/types"
 )
@@ -25,4 +26,18 @@ func (s *UserService) GetMe(ctx context.Context) (*types.User, error) {
 		}
 	}
 	return nil, types.NewNotFoundError("no agent user found")
+}
+
+func (s *UserService) AutocompleteUsers(ctx context.Context, name string) ([]types.User, error) {
+	s.store.mu.RLock()
+	defer s.store.mu.RUnlock()
+
+	query := strings.ToLower(name)
+	var matches []types.User
+	for _, u := range s.store.Users {
+		if strings.Contains(strings.ToLower(u.Name), query) || strings.Contains(strings.ToLower(u.Email), query) {
+			matches = append(matches, u)
+		}
+	}
+	return matches, nil
 }

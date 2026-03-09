@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -104,18 +105,40 @@ type Requester struct {
 	Name  string `json:"name,omitempty"`
 }
 
+// CollaboratorEntry represents a CC recipient for ticket comments.
+// It can be a user ID, an email address, or a name+email pair.
+type CollaboratorEntry struct {
+	UserID int64
+	Email  string
+	Name   string
+}
+
+func (c CollaboratorEntry) MarshalJSON() ([]byte, error) {
+	if c.UserID > 0 {
+		return json.Marshal(c.UserID)
+	}
+	if c.Name != "" {
+		return json.Marshal(struct {
+			Name  string `json:"name"`
+			Email string `json:"email"`
+		}{Name: c.Name, Email: c.Email})
+	}
+	return json.Marshal(c.Email)
+}
+
 type UpdateTicketRequest struct {
-	Subject      string        `json:"subject,omitempty"`
-	Comment      *Comment      `json:"comment,omitempty"`
-	Priority     string        `json:"priority,omitempty"`
-	Status       string        `json:"status,omitempty"`
-	AssigneeID   *int64        `json:"assignee_id,omitempty"`
-	GroupID      *int64        `json:"group_id,omitempty"`
-	Tags         []string      `json:"tags,omitempty"`
-	AddTags      []string      `json:"additional_tags,omitempty"`
-	RemoveTags   []string      `json:"remove_tags,omitempty"`
-	CustomFields []CustomField `json:"custom_fields,omitempty"`
-	SafeUpdate   bool          `json:"safe_update,omitempty"`
+	Subject                 string              `json:"subject,omitempty"`
+	Comment                 *Comment            `json:"comment,omitempty"`
+	Priority                string              `json:"priority,omitempty"`
+	Status                  string              `json:"status,omitempty"`
+	AssigneeID              *int64              `json:"assignee_id,omitempty"`
+	GroupID                 *int64              `json:"group_id,omitempty"`
+	Tags                    []string            `json:"tags,omitempty"`
+	AddTags                 []string            `json:"additional_tags,omitempty"`
+	RemoveTags              []string            `json:"remove_tags,omitempty"`
+	CustomFields            []CustomField       `json:"custom_fields,omitempty"`
+	AdditionalCollaborators []CollaboratorEntry `json:"additional_collaborators,omitempty"`
+	SafeUpdate              bool                `json:"safe_update,omitempty"`
 }
 
 type TicketResult struct {

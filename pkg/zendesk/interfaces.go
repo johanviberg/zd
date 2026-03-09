@@ -23,6 +23,7 @@ type SearchService interface {
 
 type UserService interface {
 	GetMe(ctx context.Context) (*types.User, error)
+	AutocompleteUsers(ctx context.Context, name string) ([]types.User, error)
 }
 
 type ArticleService interface {

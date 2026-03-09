@@ -47,9 +47,11 @@ type actionsModel struct {
 	width      int
 	height     int
 	current    string // current status or priority
+	ccPicker   ccPickerModel
+	ccFocused  bool
 }
 
-func newActionsModel(tickets zendesk.TicketService) actionsModel {
+func newActionsModel(tickets zendesk.TicketService, users zendesk.UserService) actionsModel {
 	ta := textarea.New()
 	ta.Placeholder = "Type your comment..."
 	ta.ShowLineNumbers = false
@@ -64,6 +66,7 @@ func newActionsModel(tickets zendesk.TicketService) actionsModel {
 		textarea: ta,
 		isPublic: false,
 		spinner:  s,
+		ccPicker: newCCPickerModel(users),
 	}
 }
 
@@ -72,6 +75,8 @@ func (m actionsModel) openComment(ticketID int64) (actionsModel, tea.Cmd) {
 	m.mode = actionComment
 	m.isPublic = false
 	m.err = nil
+	m.ccFocused = false
+	m.ccPicker = m.ccPicker.reset()
 	m.textarea.Reset()
 	return m, m.textarea.Focus()
 }
@@ -117,14 +122,19 @@ func (m actionsModel) submitComment() tea.Cmd {
 	isPublic := m.isPublic
 	ticketID := m.ticketID
 	tickets := m.tickets
+	collaborators := append([]types.CollaboratorEntry(nil), m.ccPicker.selected...)
 	return func() tea.Msg {
 		pub := isPublic
-		ticket, err := tickets.Update(context.Background(), ticketID, &types.UpdateTicketRequest{
+		req := &types.UpdateTicketRequest{
 			Comment: &types.Comment{
 				Body:   body,
 				Public: &pub,
 			},
-		})
+		}
+		if pub && len(collaborators) > 0 {
+			req.AdditionalCollaborators = collaborators
+		}
+		ticket, err := tickets.Update(context.Background(), ticketID, req)
 		if err != nil {
 			return actionErrMsg{err}
 		}
@@ -168,6 +178,14 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case ccAutocompleteMsg, ccAutocompleteErrMsg:
+		if m.mode == actionComment && m.ccFocused {
+			var cmd tea.Cmd
+			m.ccPicker, cmd = m.ccPicker.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -196,6 +214,25 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 
 		switch m.mode {
 		case actionComment:
+			// Route to CC picker when focused
+			if m.ccFocused {
+				switch {
+				case key.Matches(msg, keys.AddCC):
+					m.ccPicker = m.ccPicker.deactivate()
+					m.ccFocused = false
+					return m, m.textarea.Focus()
+				default:
+					var cmd tea.Cmd
+					m.ccPicker, cmd = m.ccPicker.Update(msg)
+					// Check if picker deactivated itself (esc)
+					if !m.ccPicker.active {
+						m.ccFocused = false
+						return m, tea.Batch(cmd, m.textarea.Focus())
+					}
+					return m, cmd
+				}
+			}
+
 			switch {
 			case key.Matches(msg, keys.Back):
 				m = m.close()
@@ -207,6 +244,20 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 				}
 			case key.Matches(msg, keys.Tab):
 				m.isPublic = !m.isPublic
+				if !m.isPublic {
+					m.ccPicker = m.ccPicker.deactivate()
+					m.ccFocused = false
+					m.ccPicker.selected = nil
+				}
+				return m, nil
+			case key.Matches(msg, keys.AddCC):
+				if m.isPublic {
+					m.ccFocused = true
+					m.textarea.Blur()
+					var cmd tea.Cmd
+					m.ccPicker, cmd = m.ccPicker.activate()
+					return m, cmd
+				}
 				return m, nil
 			default:
 				var cmd tea.Cmd
@@ -285,17 +336,21 @@ func (m actionsModel) viewComment() string {
 		statusLine = errorStyle.Render("Error: " + m.err.Error())
 	}
 
-	help := dimStyle.Render("ctrl+s submit   esc cancel   tab toggle public/internal")
+	help := dimStyle.Render("ctrl+s submit   esc cancel   tab toggle public/internal   ctrl+a add CC")
 
 	width := m.width - 8
 	if width < 40 {
 		width = 40
 	}
 	m.textarea.SetWidth(width)
+	m.ccPicker.width = width
+
+	ccLine := m.ccPicker.viewFull(m.isPublic)
 
 	content := title + "\n\n" +
 		m.textarea.View() + "\n\n" +
-		publicToggle + "\n\n" +
+		publicToggle + "\n" +
+		ccLine + "\n\n" +
 		help
 	if statusLine != "" {
 		content += "\n" + statusLine

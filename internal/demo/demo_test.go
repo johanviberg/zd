@@ -372,6 +372,51 @@ func TestSearchServicePagination(t *testing.T) {
 	}
 }
 
+func TestUserServiceAutocomplete(t *testing.T) {
+	s := NewStore()
+	svc := NewUserService(s)
+	ctx := context.Background()
+
+	users, err := svc.AutocompleteUsers(ctx, "sarah")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("expected 1 user, got %d", len(users))
+	}
+	if users[0].Name != "Sarah Chen" {
+		t.Fatalf("expected Sarah Chen, got %s", users[0].Name)
+	}
+}
+
+func TestUserServiceAutocompleteEmail(t *testing.T) {
+	s := NewStore()
+	svc := NewUserService(s)
+	ctx := context.Background()
+
+	users, err := svc.AutocompleteUsers(ctx, "customer.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(users) != 6 {
+		t.Fatalf("expected 6 end-users, got %d", len(users))
+	}
+}
+
+func TestUserServiceAutocompleteEmpty(t *testing.T) {
+	s := NewStore()
+	svc := NewUserService(s)
+	ctx := context.Background()
+
+	users, err := svc.AutocompleteUsers(ctx, "zzznomatch")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(users) != 0 {
+		t.Fatalf("expected 0 users, got %d", len(users))
+	}
+}
+
 func TestUserServiceGetMe(t *testing.T) {
 	s := NewStore()
 	svc := NewUserService(s)
