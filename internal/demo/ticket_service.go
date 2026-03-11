@@ -276,6 +276,64 @@ func (s *TicketService) ListComments(ctx context.Context, ticketID int64, opts *
 	return result, nil
 }
 
+func (s *TicketService) ListAudits(ctx context.Context, ticketID int64, opts *types.ListAuditsOptions) (*types.AuditPage, error) {
+	s.store.mu.RLock()
+	defer s.store.mu.RUnlock()
+
+	if _, ok := s.store.Tickets[ticketID]; !ok {
+		return nil, types.NewNotFoundError(fmt.Sprintf("ticket %d not found", ticketID))
+	}
+
+	audits := s.store.Audits[ticketID]
+
+	// Sort order (default ascending)
+	if opts != nil && opts.SortOrder == "desc" {
+		sorted := make([]types.Audit, len(audits))
+		copy(sorted, audits)
+		for i, j := 0, len(sorted)-1; i < j; i, j = i+1, j-1 {
+			sorted[i], sorted[j] = sorted[j], sorted[i]
+		}
+		audits = sorted
+	}
+
+	// Pagination
+	limit := 100
+	if opts != nil && opts.Limit > 0 {
+		limit = opts.Limit
+	}
+	offset := 0
+	if opts != nil && opts.Cursor != "" {
+		offset = decodeCursor(opts.Cursor)
+	}
+
+	end := offset + limit
+	hasMore := end < len(audits)
+	if end > len(audits) {
+		end = len(audits)
+	}
+	page := audits[offset:end]
+
+	var afterCursor string
+	if hasMore {
+		afterCursor = encodeCursor(end)
+	}
+
+	result := &types.AuditPage{
+		Audits: page,
+		Meta: types.PageMeta{
+			HasMore:     hasMore,
+			AfterCursor: afterCursor,
+		},
+		Count: len(audits),
+	}
+
+	if opts != nil && strings.Contains(opts.Include, "users") {
+		result.Users = s.store.CollectAuditUsers(page)
+	}
+
+	return result, nil
+}
+
 func sortTickets(tickets []types.Ticket, field, order string) {
 	sort.SliceStable(tickets, func(i, j int) bool {
 		var less bool

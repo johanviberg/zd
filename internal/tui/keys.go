@@ -29,6 +29,7 @@ type keyMap struct {
 	Images         key.Binding
 	AddCC          key.Binding
 	MyTickets      key.Binding
+	FilterTimeline key.Binding
 }
 
 var keys = keyMap{
@@ -135,5 +136,9 @@ var keys = keyMap{
 	MyTickets: key.NewBinding(
 		key.WithKeys("m"),
 		key.WithHelp("m", "my tickets"),
+	),
+	FilterTimeline: key.NewBinding(
+		key.WithKeys("f"),
+		key.WithHelp("f", "filter"),
 	),
 }

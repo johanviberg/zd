@@ -13,6 +13,7 @@ type Store struct {
 	mu       sync.RWMutex
 	Tickets  map[int64]types.Ticket
 	Comments map[int64][]types.Comment
+	Audits   map[int64][]types.Audit
 	Users    []types.User
 	nextID   int64
 }
@@ -21,6 +22,7 @@ func NewStore() *Store {
 	s := &Store{
 		Tickets:  make(map[int64]types.Ticket),
 		Comments: make(map[int64][]types.Comment),
+		Audits:   make(map[int64][]types.Audit),
 	}
 	r := rand.New(rand.NewSource(42))
 	s.generateUsers()
@@ -395,6 +397,9 @@ func (s *Store) generateTickets(r *rand.Rand) {
 			comments = append(comments, comment)
 		}
 		s.Comments[i] = comments
+
+		// Generate audits from ticket + comments
+		s.Audits[i] = generateAudits(r, ticket, comments)
 		s.nextID = i
 	}
 
@@ -435,6 +440,28 @@ func (s *Store) CollectCommentUsers(comments []types.Comment) []types.User {
 			seen[c.AuthorID] = true
 			if u := s.UserByID(c.AuthorID); u != nil {
 				users = append(users, *u)
+			}
+		}
+	}
+	return users
+}
+
+func (s *Store) CollectAuditUsers(audits []types.Audit) []types.User {
+	seen := make(map[int64]bool)
+	var users []types.User
+	for _, a := range audits {
+		if a.AuthorID != 0 && !seen[a.AuthorID] {
+			seen[a.AuthorID] = true
+			if u := s.UserByID(a.AuthorID); u != nil {
+				users = append(users, *u)
+			}
+		}
+		for _, ev := range a.Events {
+			if ev.AuthorID != 0 && !seen[ev.AuthorID] {
+				seen[ev.AuthorID] = true
+				if u := s.UserByID(ev.AuthorID); u != nil {
+					users = append(users, *u)
+				}
 			}
 		}
 	}
@@ -489,6 +516,150 @@ func sampleAttachments(r *rand.Rand, commentID int64) []types.Attachment {
 		})
 	}
 	return attachments
+}
+
+// generateAudits creates audit entries from a ticket and its comments.
+func generateAudits(r *rand.Rand, ticket types.Ticket, comments []types.Comment) []types.Audit {
+	var audits []types.Audit
+	auditID := ticket.ID * 1000
+
+	// First audit: ticket creation with description as comment + Create events
+	auditID++
+	createEvents := []types.AuditEvent{
+		{
+			ID:       auditID * 10,
+			Type:     "Comment",
+			Body:     ticket.Description,
+			Public:   boolPtr(true),
+			AuthorID: ticket.RequesterID,
+		},
+		{
+			ID:        auditID*10 + 1,
+			Type:      "Create",
+			FieldName: "status",
+			Value:     "new",
+		},
+	}
+	if ticket.Priority != "" {
+		createEvents = append(createEvents, types.AuditEvent{
+			ID:        auditID*10 + 2,
+			Type:      "Create",
+			FieldName: "priority",
+			Value:     ticket.Priority,
+		})
+	}
+	audits = append(audits, types.Audit{
+		ID:        auditID,
+		TicketID:  ticket.ID,
+		AuthorID:  ticket.RequesterID,
+		CreatedAt: ticket.CreatedAt,
+		Events:    createEvents,
+	})
+
+	// Status transition path for field-change audits
+	statusPath := statusTransitionPath(ticket.Status)
+
+	// Interleave comments with field-change audits
+	changeInserted := 0
+	for ci, c := range comments {
+		// Insert a field-change audit before some comments
+		if ci > 0 && changeInserted < len(statusPath)-1 && r.Float64() < 0.6 {
+			auditID++
+			changeTime := c.CreatedAt.Add(-time.Duration(r.Intn(30)+1) * time.Minute)
+			agent := agentIDs[r.Intn(len(agentIDs))]
+
+			var events []types.AuditEvent
+			events = append(events, types.AuditEvent{
+				ID:            auditID * 10,
+				Type:          "Change",
+				FieldName:     "status",
+				PreviousValue: statusPath[changeInserted],
+				Value:         statusPath[changeInserted+1],
+			})
+			changeInserted++
+
+			// Sometimes add a priority change too
+			if r.Float64() < 0.3 {
+				oldPri := priorities[r.Intn(len(priorities))]
+				newPri := priorities[r.Intn(len(priorities))]
+				if oldPri != newPri {
+					events = append(events, types.AuditEvent{
+						ID:            auditID*10 + 1,
+						Type:          "Change",
+						FieldName:     "priority",
+						PreviousValue: oldPri,
+						Value:         newPri,
+					})
+				}
+			}
+
+			// Sometimes add an assignee change
+			if r.Float64() < 0.3 {
+				newAssignee := agentIDs[r.Intn(len(agentIDs))]
+				events = append(events, types.AuditEvent{
+					ID:            auditID*10 + 2,
+					Type:          "Change",
+					FieldName:     "assignee_id",
+					PreviousValue: fmt.Sprintf("%d", ticket.AssigneeID),
+					Value:         fmt.Sprintf("%d", newAssignee),
+				})
+			}
+
+			audits = append(audits, types.Audit{
+				ID:        auditID,
+				TicketID:  ticket.ID,
+				AuthorID:  agent,
+				CreatedAt: changeTime,
+				Events:    events,
+			})
+		}
+
+		// Comment audit
+		auditID++
+		commentEvents := []types.AuditEvent{
+			{
+				ID:          auditID * 10,
+				Type:        "Comment",
+				Body:        c.Body,
+				Public:      c.Public,
+				AuthorID:    c.AuthorID,
+				Attachments: c.Attachments,
+			},
+		}
+		audits = append(audits, types.Audit{
+			ID:        auditID,
+			TicketID:  ticket.ID,
+			AuthorID:  c.AuthorID,
+			CreatedAt: c.CreatedAt,
+			Events:    commentEvents,
+		})
+	}
+
+	return audits
+}
+
+// statusTransitionPath returns a plausible status path ending at the target status.
+func statusTransitionPath(target string) []string {
+	switch target {
+	case "new":
+		return []string{"new"}
+	case "open":
+		return []string{"new", "open"}
+	case "pending":
+		return []string{"new", "open", "pending"}
+	case "hold":
+		return []string{"new", "open", "hold"}
+	case "solved":
+		return []string{"new", "open", "pending", "solved"}
+	case "closed":
+		return []string{"new", "open", "solved", "closed"}
+	default:
+		return []string{"new", "open"}
+	}
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
 
 // DemoSubdomain returns the subdomain used for demo mode URLs.

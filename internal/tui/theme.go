@@ -160,6 +160,15 @@ var (
 	ccResultHighlightStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#FAFAFA"})
+
+	timelineConnectorStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#4B5563"})
+
+	timelineChangeStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"})
+
+	timelineArrowStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"})
 )
 
 func styledStatus(status string) string {

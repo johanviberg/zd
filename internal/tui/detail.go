@@ -20,9 +20,9 @@ type ticketLoadedMsg struct {
 	users  []types.User
 }
 
-type commentsLoadedMsg struct {
-	comments []types.Comment
-	users    []types.User
+type auditsLoadedMsg struct {
+	audits []types.Audit
+	users  []types.User
 }
 
 type goBackMsg struct{}
@@ -31,7 +31,9 @@ type detailModel struct {
 	tickets          zendesk.TicketService
 	ticket           *types.Ticket
 	users            map[int64]types.User
-	comments         []types.Comment
+	audits           []types.Audit
+	timeline         []TimelineNode
+	commentsOnly     bool
 	viewport         viewport.Model
 	loading          bool
 	err              error
@@ -67,16 +69,16 @@ func (m detailModel) loadTicket(id int64) tea.Cmd {
 	}
 }
 
-func (m detailModel) loadComments(id int64) tea.Cmd {
+func (m detailModel) loadAudits(id int64) tea.Cmd {
 	return func() tea.Msg {
-		page, err := m.tickets.ListComments(context.Background(), id, &types.ListCommentsOptions{
+		page, err := m.tickets.ListAudits(context.Background(), id, &types.ListAuditsOptions{
 			Include:   "users",
-			SortOrder: "desc",
+			SortOrder: "asc",
 		})
 		if err != nil {
 			return errMsg{err}
 		}
-		return commentsLoadedMsg{comments: page.Comments, users: page.Users}
+		return auditsLoadedMsg{audits: page.Audits, users: page.Users}
 	}
 }
 
@@ -106,16 +108,17 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		m.viewport = viewport.New(m.width-4, m.height-6)
 		m.viewport.SetContent(m.renderContent())
 		m.ready = true
-		return m, m.loadComments(msg.ticket.ID)
+		return m, m.loadAudits(msg.ticket.ID)
 
-	case commentsLoadedMsg:
-		m.comments = msg.comments
+	case auditsLoadedMsg:
+		m.audits = msg.audits
 		if m.users == nil {
 			m.users = make(map[int64]types.User)
 		}
 		for _, u := range msg.users {
 			m.users[u.ID] = u
 		}
+		m.timeline = buildTimeline(m.audits)
 		m.buildImageEntries()
 		if m.ready {
 			m.viewport.SetContent(m.renderContent())
@@ -144,6 +147,12 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keys.Back):
 			return m, func() tea.Msg { return goBackMsg{} }
+		case key.Matches(msg, keys.FilterTimeline):
+			m.commentsOnly = !m.commentsOnly
+			if m.ready {
+				m.viewport.SetContent(m.renderContent())
+			}
+			return m, nil
 		case key.Matches(msg, keys.Images):
 			if len(m.imageAttachments) > 0 {
 				m.imagePicker = m.imagePicker.open(m.imageAttachments)
@@ -227,54 +236,27 @@ func (m detailModel) renderContent() string {
 
 	// Description section
 	if t.Description != "" {
+		wrappedDesc := strings.Join(wrapText(t.Description, contentWidth-4), "\n")
 		descBox := borderStyle.Width(contentWidth).Render(
 			headerStyle.Render(" Description") + "\n" +
-				t.Description,
+				wrappedDesc,
 		)
 		b.WriteString(descBox + "\n\n")
 	}
 
-	// Comments section
-	if len(m.comments) > 0 {
-		var commentLines strings.Builder
-		commentLines.WriteString(headerStyle.Render(fmt.Sprintf(" Comments (%d)", len(m.comments))) + "\n")
-
-		attachIdx := 0
-		for i, c := range m.comments {
-			author := m.userName(c.AuthorID)
-			timeAgo := relativeTime(c.CreatedAt)
-			isPublic := c.Public == nil || *c.Public
-
-			authorLine := commentAuthorStyle.Render(author)
-			if !isPublic {
-				authorLine += " " + internalNoteStyle.Render("(internal)")
-			}
-			authorLine += " " + commentTimeStyle.Render("· "+timeAgo)
-
-			commentLines.WriteString(authorLine + "\n")
-			commentLines.WriteString(c.Body + "\n")
-
-			if len(c.Attachments) > 0 {
-				for _, a := range c.Attachments {
-					attachIdx++
-					icon := "📎"
-					style := attachmentStyle
-					if a.IsImage() {
-						icon = "📷"
-						style = attachmentImageStyle
-					}
-					line := style.Render(fmt.Sprintf("  %s [%d] %s (%s)", icon, attachIdx, a.FileName, a.HumanSize()))
-					commentLines.WriteString(line + "\n")
-				}
-			}
-
-			if i < len(m.comments)-1 {
-				commentLines.WriteString("\n")
-			}
-		}
-
-		commentBox := borderStyle.Width(contentWidth).Render(commentLines.String())
-		b.WriteString(commentBox)
+	// Timeline section
+	nodes := m.timeline
+	label := fmt.Sprintf(" Timeline (%d)", len(nodes))
+	if m.commentsOnly {
+		nodes = filterCommentNodes(m.timeline)
+		label = fmt.Sprintf(" Timeline · comments (%d)", len(nodes))
+	}
+	if len(nodes) > 0 {
+		timelineBox := borderStyle.Width(contentWidth).Render(
+			headerStyle.Render(label) + "\n" +
+				renderTimeline(nodes, m.users, contentWidth-4),
+		)
+		b.WriteString(timelineBox)
 	}
 
 	return b.String()
@@ -283,16 +265,21 @@ func (m detailModel) renderContent() string {
 func (m *detailModel) buildImageEntries() {
 	m.imageAttachments = nil
 	idx := 0
-	for _, c := range m.comments {
-		author := m.userName(c.AuthorID)
-		for _, a := range c.Attachments {
-			idx++
-			if a.IsImage() {
-				m.imageAttachments = append(m.imageAttachments, imageEntry{
-					index:      idx,
-					attachment: a,
-					authorName: author,
-				})
+	for _, audit := range m.audits {
+		author := timelineUserName(audit.AuthorID, m.users)
+		for _, ev := range audit.Events {
+			if ev.Type != "Comment" {
+				continue
+			}
+			for _, a := range ev.Attachments {
+				idx++
+				if a.IsImage() {
+					m.imageAttachments = append(m.imageAttachments, imageEntry{
+						index:      idx,
+						attachment: a,
+						authorName: author,
+					})
+				}
 			}
 		}
 	}

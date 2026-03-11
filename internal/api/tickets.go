@@ -156,6 +156,36 @@ func (s *TicketService) ListComments(ctx context.Context, ticketID int64, opts *
 	return &page, nil
 }
 
+func (s *TicketService) ListAudits(ctx context.Context, ticketID int64, opts *types.ListAuditsOptions) (*types.AuditPage, error) {
+	path := fmt.Sprintf("/api/v2/tickets/%d/audits", ticketID)
+	params := url.Values{}
+
+	if opts != nil {
+		if opts.Limit > 0 {
+			params.Set("page[size]", strconv.Itoa(opts.Limit))
+		}
+		if opts.Cursor != "" {
+			params.Set("page[after]", opts.Cursor)
+		}
+		if opts.SortOrder != "" {
+			params.Set("sort_order", opts.SortOrder)
+		}
+		if opts.Include != "" {
+			params.Set("include", opts.Include)
+		}
+	}
+
+	if len(params) > 0 {
+		path += "?" + params.Encode()
+	}
+
+	var page types.AuditPage
+	if err := s.client.doJSON(ctx, "GET", path, nil, &page); err != nil {
+		return nil, err
+	}
+	return &page, nil
+}
+
 func (s *TicketService) Delete(ctx context.Context, id int64) error {
 	path := fmt.Sprintf("/api/v2/tickets/%d", id)
 	resp, err := s.client.do(ctx, "DELETE", path, nil)

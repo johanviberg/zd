@@ -1,0 +1,85 @@
+{
+  "audits": [
+    {
+      "id": 1001,
+      "ticket_id": 42,
+      "author_id": 10,
+      "created_at": "2025-01-01T00:00:00Z",
+      "events": [
+        {
+          "id": 2001,
+          "type": "Comment",
+          "body": "Initial description of the issue",
+          "public": true,
+          "author_id": 10,
+          "attachments": [
+            {
+              "id": 3001,
+              "file_name": "screenshot.png",
+              "content_url": "https://example.com/attachments/screenshot.png",
+              "content_type": "image/png",
+              "size": 45200
+            }
+          ]
+        },
+        {
+          "id": 2002,
+          "type": "Create",
+          "field_name": "status",
+          "value": "new"
+        }
+      ]
+    },
+    {
+      "id": 1002,
+      "ticket_id": 42,
+      "author_id": 20,
+      "created_at": "2025-01-02T00:00:00Z",
+      "events": [
+        {
+          "id": 2003,
+          "type": "Change",
+          "field_name": "status",
+          "value": "open",
+          "previous_value": "new"
+        },
+        {
+          "id": 2004,
+          "type": "Change",
+          "field_name": "assignee_id",
+          "value": "20",
+          "previous_value": ""
+        }
+      ]
+    },
+    {
+      "id": 1003,
+      "ticket_id": 42,
+      "author_id": 20,
+      "created_at": "2025-01-03T00:00:00Z",
+      "events": [
+        {
+          "id": 2005,
+          "type": "Comment",
+          "body": "Looking into this now",
+          "public": true,
+          "author_id": 20
+        },
+        {
+          "id": 2006,
+          "type": "Change",
+          "field_name": "priority",
+          "value": "high",
+          "previous_value": "normal"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "has_more": true,
+    "after_cursor": "eyJhdWRpdHMiOlsiMTAwMyJdfQ=="
+  },
+  "links": {
+    "next": "https://example.zendesk.com/api/v2/tickets/42/audits?page[after]=eyJhdWRpdHMiOlsiMTAwMyJdfQ=="
+  }
+}

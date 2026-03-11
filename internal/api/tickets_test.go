@@ -359,6 +359,84 @@ func TestTicketService_ListComments_WithUsers(t *testing.T) {
 	}
 }
 
+func TestTicketService_ListAudits(t *testing.T) {
+	fixture, err := os.ReadFile("../../testdata/audits.json")
+	if err != nil {
+		t.Fatalf("reading fixture: %v", err)
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v2/tickets/42/audits" {
+			t.Errorf("expected /api/v2/tickets/42/audits, got %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(fixture)
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	page, err := svc.ListAudits(context.Background(), 42, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.Audits) != 3 {
+		t.Fatalf("expected 3 audits, got %d", len(page.Audits))
+	}
+	if page.Audits[0].ID != 1001 {
+		t.Errorf("expected first audit ID 1001, got %d", page.Audits[0].ID)
+	}
+	if page.Audits[0].TicketID != 42 {
+		t.Errorf("expected ticket_id 42, got %d", page.Audits[0].TicketID)
+	}
+	if len(page.Audits[0].Events) != 2 {
+		t.Errorf("expected 2 events in first audit, got %d", len(page.Audits[0].Events))
+	}
+	if page.Audits[0].Events[0].Type != "Comment" {
+		t.Errorf("expected first event type 'Comment', got %q", page.Audits[0].Events[0].Type)
+	}
+	if page.Audits[0].Events[0].Body != "Initial description of the issue" {
+		t.Errorf("unexpected body: %q", page.Audits[0].Events[0].Body)
+	}
+	if len(page.Audits[0].Events[0].Attachments) != 1 {
+		t.Errorf("expected 1 attachment, got %d", len(page.Audits[0].Events[0].Attachments))
+	}
+	if !page.Meta.HasMore {
+		t.Error("expected has_more to be true")
+	}
+}
+
+func TestTicketService_ListAudits_WithOptions(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("page[size]"); got != "10" {
+			t.Errorf("expected page[size]=10, got %q", got)
+		}
+		if got := r.URL.Query().Get("sort_order"); got != "asc" {
+			t.Errorf("expected sort_order=asc, got %q", got)
+		}
+		if got := r.URL.Query().Get("include"); got != "users" {
+			t.Errorf("expected include=users, got %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"audits":[],"meta":{"has_more":false}}`))
+	})
+
+	client := testClient(t, handler)
+	svc := NewTicketService(client)
+
+	_, err := svc.ListAudits(context.Background(), 1, &types.ListAuditsOptions{
+		Limit:     10,
+		SortOrder: "asc",
+		Include:   "users",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestTicketService_List_Pagination(t *testing.T) {
 	page := 0
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

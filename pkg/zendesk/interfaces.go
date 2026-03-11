@@ -15,6 +15,7 @@ type TicketService interface {
 	Update(ctx context.Context, id int64, req *types.UpdateTicketRequest) (*types.Ticket, error)
 	Delete(ctx context.Context, id int64) error
 	ListComments(ctx context.Context, ticketID int64, opts *types.ListCommentsOptions) (*types.CommentPage, error)
+	ListAudits(ctx context.Context, ticketID int64, opts *types.ListAuditsOptions) (*types.AuditPage, error)
 }
 
 type SearchService interface {
