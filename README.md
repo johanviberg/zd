@@ -173,7 +173,7 @@ The TUI provides:
 - **Ticket list** — browse tickets with `j`/`k` or arrow keys, color-coded status and priority
 - **Panel control** — press `tab` to switch focus between panels, `v` to toggle the detail panel
 - **Infinite scroll** — auto-loads the next page when reaching the bottom of the list; or press `n`
-- **Detail view** — press `enter` to view a ticket's details, description, and comments (scroll with arrows)
+- **Detail view** — press `enter` to view a ticket's details, description, and audit timeline (scroll with arrows); press `f` to toggle between all events and comments-only
 - **Search** — press `/` to search using Zendesk search syntax or natural language (e.g. `status:open priority:high`), `esc` to clear
 - **Comment** — press `c` to add a comment, toggle between public reply and internal note with `tab`, add CC recipients with `ctrl+a`, submit with `ctrl+s`
 - **Status/Priority** — press `s` or `p` to change status or priority via a picker

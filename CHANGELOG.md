@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-03-11
+
+### Added
+
+- Audit timeline in TUI detail view — replaces flat comments with a vertical timeline showing field changes (status, priority, assignee) alongside comments with connector lines
+- Timeline filter — press `f` to toggle between all events and comments-only
+- Text wrapping for long URLs and unbroken text in description and timeline panels
+
+### Fixed
+
+- Detail panel now shows ticket top (Details + Description) on load instead of scrolling to bottom
+
 ## [0.4.6] - 2026-03-11
 
 ### Added
@@ -114,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.7...HEAD
+[0.4.7]: https://github.com/johanviberg/zd/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/johanviberg/zd/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/johanviberg/zd/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/johanviberg/zd/compare/v0.4.3...v0.4.4
