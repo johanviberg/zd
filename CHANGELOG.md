@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-03-11
+
+### Added
+
+- "My tickets" shortcut in TUI — press `m` to toggle a filter showing only tickets assigned to you; press `m` again or `esc` to clear
+- "My tickets" entry in command palette
+
 ## [0.4.5] - 2026-03-09
 
 ### Added
@@ -107,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.5...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.6...HEAD
+[0.4.6]: https://github.com/johanviberg/zd/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/johanviberg/zd/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/johanviberg/zd/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/johanviberg/zd/compare/v0.4.2...v0.4.3
