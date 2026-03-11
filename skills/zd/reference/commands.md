@@ -141,6 +141,7 @@ Update an existing ticket. Only changed flags are sent.
 | `--tags` | stringSlice | | Replace all tags |
 | `--add-tags` | stringSlice | | Add tags |
 | `--remove-tags` | stringSlice | | Remove tags |
+| `--cc` | stringSlice | | Add CCs (emails or user IDs, comma-separated) |
 | `--custom-field` | stringArray | | Custom field (`id=value`, repeatable) |
 | `--safe-update` | bool | `false` | Use safe update (conflict detection) |
 
@@ -319,6 +320,17 @@ No additional flags. Uses the same authentication as the CLI.
 ```bash
 zd mcp serve
 zd mcp serve --demo
+```
+
+### `zd completion`
+
+Generate shell autocompletion scripts.
+
+Available subcommands: `bash`, `fish`, `powershell`, `zsh`.
+
+```bash
+zd completion bash
+zd completion zsh
 ```
 
 ### `zd version`

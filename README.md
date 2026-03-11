@@ -273,7 +273,7 @@ Point at `zd mcp serve` in your editor's MCP settings. The server communicates o
 | `zendesk_show_ticket` | Show full ticket details with requester and assignee info |
 | `zendesk_search_tickets` | Search using Zendesk query syntax |
 | `zendesk_create_ticket` | Create a ticket with subject, body, priority, and tags |
-| `zendesk_update_ticket` | Update a ticket: add comments (public or internal), change status/priority, manage tags |
+| `zendesk_update_ticket` | Update a ticket: add comments (public or internal), change status/priority, manage tags, add CCs |
 | `zendesk_delete_ticket` | Permanently delete a ticket |
 
 The MCP server uses the same authentication as the CLI — run `zd auth login` first. Demo mode works too: `zd mcp serve --demo`.
@@ -322,7 +322,7 @@ This returns a schema with property types, required fields, and defaults that an
 | `zd tickets list` | List tickets (supports `--include`) |
 | `zd tickets show <id>` | Show a ticket (supports `--include`) |
 | `zd tickets create` | Create a ticket |
-| `zd tickets update <id>` | Update a ticket |
+| `zd tickets update <id>` | Update a ticket (comment, status, priority, tags, CCs) |
 | `zd tickets delete <id>` | Delete a ticket |
 | `zd tickets search <query>` | Search tickets (supports `--include` and natural language) |
 | `zd tickets comments <id>` | List comments on a ticket (supports `--include`) |
@@ -330,6 +330,7 @@ This returns a schema with property types, required fields, and defaults that an
 | `zd articles show <id>` | Show a Help Center article |
 | `zd articles search <query>` | Search Help Center articles |
 | `zd mcp serve` | Start MCP server on stdio for AI agent integration |
+| `zd completion` | Generate shell autocompletion (bash, fish, powershell, zsh) |
 | `zd tui` | Interactive terminal UI for managing tickets |
 | `zd config show` | Show current configuration |
 | `zd config set <key> <value>` | Set a configuration value |

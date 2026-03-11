@@ -155,7 +155,7 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "zendesk_update_ticket",
 		Description: "Update an existing Zendesk ticket. Can add comments (public or internal notes), " +
-			"change status/priority, and manage tags. Always show the ticket first to understand context.",
+			"change status/priority, manage tags, and add CCs. Always show the ticket first to understand context.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args UpdateTicketInput) (*mcp.CallToolResult, any, error) {
 		if args.ID == 0 {
 			return errorResult(types.NewArgError("ticket id is required")), nil, nil

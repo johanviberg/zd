@@ -118,6 +118,7 @@ zd tickets create -o json \
 zd tickets update 12345 -o json --status solved --comment "Fixed in v2.1"
 zd tickets update 12345 -o json --add-tags escalated --priority urgent
 zd tickets update 12345 -o json --comment "Internal note" --public=false
+zd tickets update 12345 -o json --comment "Looping in team" --cc alice@co.com,bob@co.com
 ```
 
 ### Delete a ticket (two-step safety)
