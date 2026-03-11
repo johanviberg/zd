@@ -269,6 +269,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 
+			// m: toggle my tickets filter
+			if key.Matches(msg, keys.MyTickets) && (m.state == listView || m.state == splitView || m.state == kanbanView) {
+				return m.toggleMyTickets()
+			}
+
 			// Esc handling for split view
 			if msg.String() == "esc" && m.state == splitView {
 				if m.focus == focusDetail {
@@ -866,6 +871,23 @@ func (m *App) toggleKanbanView() (tea.Model, tea.Cmd) {
 	return m, m.updateWindowTitle()
 }
 
+func (m *App) toggleMyTickets() (tea.Model, tea.Cmd) {
+	if m.currentUser == nil || m.currentUser.Email == "" {
+		return m, nil
+	}
+	myQuery := "assignee:" + m.currentUser.Email
+	if m.list.searchQuery == myQuery {
+		// Toggle off: clear filter and reload all tickets
+		m.list.searchQuery = ""
+		m.list.loading = true
+		return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
+	}
+	// Toggle on: search for my tickets
+	m.list.searchQuery = myQuery
+	m.list.loading = true
+	return m, tea.Batch(m.list.spinner.Tick, m.list.doSearch(myQuery))
+}
+
 func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 	switch action {
 	case "quit":
@@ -959,6 +981,8 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 			m.actions = m.actions.openPriority(id, priority)
 			return m, nil
 		}
+	case "my-tickets":
+		return m.toggleMyTickets()
 	case "toggle-kanban":
 		return m.toggleKanbanView()
 	case "toggle-detail":
@@ -1109,7 +1133,7 @@ func (m App) helpBar() string {
 	var left string
 	switch m.state {
 	case listView:
-		left = "↑↓ navigate  enter view  / search  ctrl+p commands  q quit"
+		left = "↑↓ navigate  enter view  / search  m my-tickets  ctrl+p commands  q quit"
 	case detailView:
 		if len(m.detail.imageAttachments) > 0 {
 			left = "↑↓ scroll  i images  esc back  ctrl+p commands  q quit"
@@ -1118,14 +1142,14 @@ func (m App) helpBar() string {
 		}
 	case splitView:
 		if m.focus == focusList {
-			left = "↑↓ navigate  enter view  tab focus  ctrl+p commands  q quit"
+			left = "↑↓ navigate  enter view  tab focus  m my-tickets  ctrl+p commands  q quit"
 		} else if len(m.detail.imageAttachments) > 0 {
 			left = "↑↓ scroll  i images  tab focus  esc back  ctrl+p commands  q quit"
 		} else {
 			left = "↑↓ scroll  tab focus  esc back  ctrl+p commands  q quit"
 		}
 	case kanbanView:
-		left = "←→ columns  ↑↓ navigate  enter view  w list  / search  ctrl+p commands  q quit"
+		left = "←→ columns  ↑↓ navigate  enter view  w list  m my-tickets  / search  ctrl+p commands  q quit"
 	}
 
 	if m.currentUser == nil || m.width == 0 {

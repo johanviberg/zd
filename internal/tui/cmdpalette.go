@@ -77,6 +77,7 @@ func (m *cmdPaletteModel) open(state viewState, focus panelFocus, showDetail boo
 	}
 
 	// Data
+	items = append(items, cmdItem{"My tickets", "m", "Data", "my-tickets"})
 	items = append(items, cmdItem{"Refresh", "R", "Data", "refresh"})
 	items = append(items, cmdItem{"Toggle auto-refresh", "r", "Data", "auto-refresh"})
 	if hasMore {
