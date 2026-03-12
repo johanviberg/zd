@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
 	"github.com/johanviberg/zd/internal/auth"
+	"github.com/johanviberg/zd/internal/cache"
 	"github.com/johanviberg/zd/internal/tui"
 )
 
@@ -32,6 +34,13 @@ var tuiCmd = &cobra.Command{
 		userSvc, err := newUserService(cmd)
 		if err != nil {
 			return err
+		}
+
+		// Wrap with cache for non-demo mode to reduce API calls
+		if demoStoreFromCtx(cmd.Context()) == nil {
+			c := cache.New(60 * time.Second)
+			ticketSvc = cache.NewCachedTicketService(ticketSvc, c)
+			searchSvc = cache.NewCachedSearchService(searchSvc, c)
 		}
 
 		cfg := configFromCtx(cmd.Context())

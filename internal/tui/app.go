@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -17,6 +18,11 @@ import (
 )
 
 type errMsg struct{ err error }
+
+type cursorSettledMsg struct {
+	seq uint64
+	id  int64
+}
 
 type viewState int
 
@@ -56,6 +62,7 @@ type App struct {
 	focus       panelFocus
 	showDetail  bool
 	version     string
+	cursorSeq   uint64
 }
 
 func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users zendesk.UserService, subdomain, version string) App {
@@ -467,6 +474,23 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case cursorChangedMsg:
 		if m.state == splitView && m.showDetail {
+			m.cursorSeq++
+			seq := m.cursorSeq
+			id := msg.id
+			return m, tea.Tick(300*time.Millisecond, func(time.Time) tea.Msg {
+				return cursorSettledMsg{seq: seq, id: id}
+			})
+		}
+		return m, nil
+
+	case cursorSettledMsg:
+		if msg.seq != m.cursorSeq {
+			return m, nil // stale — user moved again
+		}
+		if m.state == splitView && m.showDetail {
+			if m.detail.ticket != nil && m.detail.ticket.ID == msg.id {
+				return m, nil
+			}
 			m.detail = newDetailModel(m.tickets)
 			m.detail.expectedID = msg.id
 			m.detail.width = m.detailPanelWidth()

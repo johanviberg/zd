@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-03-12
+
+### Added
+
+- In-memory TTL cache for TUI API calls — avoids redundant `Get`, `ListAudits`, `ListComments`, `List`, and `Search` requests within a 60-second window
+- Cursor settle debounce (300ms) in split view — detail panel only loads after the user stops scrolling, preventing wasted API calls during rapid navigation
+- Cache invalidation on mutations — `Create`, `Update`, and `Delete` immediately clear stale ticket and search cache entries
+
+### Fixed
+
+- Styled `zd` logo in TUI header
+- Newlines in ticket subjects no longer break list and kanban row rendering
+
 ## [0.4.8] - 2026-03-12
 
 ### Added
@@ -145,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.9...HEAD
+[0.4.9]: https://github.com/johanviberg/zd/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/johanviberg/zd/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/johanviberg/zd/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/johanviberg/zd/compare/v0.4.5...v0.4.6
