@@ -403,7 +403,7 @@ func (m kanbanModel) renderCard(t types.Ticket, selected bool, colWidth int, sta
 	idStr := fmt.Sprintf("#%d", t.ID)
 
 	// Line 2: subject (truncated)
-	subject := t.Subject
+	subject := strings.ReplaceAll(strings.ReplaceAll(t.Subject, "\n", " "), "\r", "")
 	runes := []rune(subject)
 	if len(runes) > innerW {
 		subject = string(runes[:innerW-1]) + "…"

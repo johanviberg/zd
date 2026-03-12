@@ -463,7 +463,7 @@ func (m listModel) renderTicketRow(t types.Ticket, selected bool) string {
 	id := fmt.Sprintf("#%d", t.ID)
 	status := styledStatus(t.Status)
 	priority := styledPriority(t.Priority)
-	subject := t.Subject
+	subject := strings.ReplaceAll(strings.ReplaceAll(t.Subject, "\n", " "), "\r", "")
 	ago := relativeTime(t.UpdatedAt)
 	createdAgo := relativeTime(t.CreatedAt)
 
