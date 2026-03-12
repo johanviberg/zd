@@ -3,6 +3,7 @@ package auth
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -24,15 +25,17 @@ func TestSaveAndLoadCredentials(t *testing.T) {
 		t.Fatalf("SaveCredentials: %v", err)
 	}
 
-	// Verify file permissions
+	// Verify file permissions (Unix only; Windows always reports 0666)
 	path := filepath.Join(tmpDir, "zd", "credentials.json")
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("stat credentials: %v", err)
-	}
-	perm := info.Mode().Perm()
-	if perm != 0600 {
-		t.Errorf("expected permissions 0600, got %o", perm)
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat credentials: %v", err)
+		}
+		perm := info.Mode().Perm()
+		if perm != 0600 {
+			t.Errorf("expected permissions 0600, got %o", perm)
+		}
 	}
 
 	loaded, err := LoadCredentials("default")
@@ -131,6 +134,9 @@ func TestResolveCredentials_APITokenEnv(t *testing.T) {
 }
 
 func TestLoadCredentials_SymlinkRejected(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink tests require Unix filesystem semantics")
+	}
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
@@ -155,6 +161,9 @@ func TestLoadCredentials_SymlinkRejected(t *testing.T) {
 }
 
 func TestLoadCredentials_InsecurePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission checks require Unix filesystem semantics")
+	}
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
@@ -188,14 +197,16 @@ func TestSaveCredentials_AtomicWrite(t *testing.T) {
 		t.Fatalf("SaveCredentials: %v", err)
 	}
 
-	// Verify file permissions are 0600
+	// Verify file permissions are 0600 (Unix only)
 	path := filepath.Join(tmpDir, "zd", "credentials.json")
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("stat: %v", err)
-	}
-	if info.Mode().Perm() != 0600 {
-		t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
+		if info.Mode().Perm() != 0600 {
+			t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
+		}
 	}
 
 	// Verify no temp files left behind
@@ -208,6 +219,9 @@ func TestSaveCredentials_AtomicWrite(t *testing.T) {
 }
 
 func TestSaveCredentials_SymlinkRejected(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink tests require Unix filesystem semantics")
+	}
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 

@@ -30,11 +30,7 @@ func checkCredentialFile(path string) error {
 	if info.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("credentials file is a symlink: %s", path)
 	}
-	perm := info.Mode().Perm()
-	if perm != 0600 {
-		return fmt.Errorf("credentials file has insecure permissions %o (expected 0600): %s", perm, path)
-	}
-	return nil
+	return checkCredentialPermissions(path, info)
 }
 
 func writeCredentialsAtomically(path string, data []byte) error {
