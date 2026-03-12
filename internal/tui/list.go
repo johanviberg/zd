@@ -390,7 +390,7 @@ func (m listModel) View() string {
 	} else {
 		countLabel = fmt.Sprintf("%d tickets", len(m.items))
 	}
-	header := titleStyle.Render("Tickets") + "  " + subtitleStyle.Render(countLabel)
+	header := renderLogo() + "  " + subtitleStyle.Render(countLabel)
 	if m.autoRefresh {
 		mins := m.refreshCountdown / 60
 		secs := m.refreshCountdown % 60

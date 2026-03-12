@@ -169,6 +169,14 @@ var (
 
 	timelineArrowStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"})
+
+	logoAccentStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
+
+	logoTextStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
 )
 
 func styledStatus(status string) string {
