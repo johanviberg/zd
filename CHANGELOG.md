@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-03-12
+
+### Added
+
+- Shell completion command (`zd completion [bash|zsh|fish|powershell]`) with install instructions for each shell
+- Man page generation (`zd man`) using `cobra/doc` — hidden command used during release builds
+- FreeBSD release binaries (amd64, arm64)
+- 386 and armv7 release binaries for Linux and Windows
+- APK packages for Alpine Linux
+- Scoop bucket for Windows (`scoop install zd`)
+- Shell completions (bash/zsh/fish) bundled in release archives and installed via Homebrew/deb/rpm/apk
+- Man pages bundled in release archives and installed via Homebrew/deb/rpm/apk
+- CI build workflow running tests on Ubuntu, macOS, and Windows for every push and PR
+
+### Changed
+
+- Release archive naming uses human-friendly platform names (macOS, x86_64, i386) instead of Go identifiers
+- Changelog in GitHub releases now groups commits by type (New Features, Bug Fixes, Performance, etc.)
+
 ## [0.4.7] - 2026-03-11
 
 ### Added
@@ -126,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.7...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.8...HEAD
+[0.4.8]: https://github.com/johanviberg/zd/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/johanviberg/zd/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/johanviberg/zd/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/johanviberg/zd/compare/v0.4.4...v0.4.5

@@ -2,6 +2,10 @@
 /zd
 dist/
 
+# Generated during release
+completions/
+manpages/
+
 # Secrets and config
 .env
 credentials.json

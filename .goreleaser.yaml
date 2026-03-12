@@ -1,5 +1,18 @@
 version: 2
 
+before:
+  hooks:
+    - go mod tidy
+    # Generate shell completions
+    - mkdir -p completions
+    - sh -c "go run . completion bash > completions/zd.bash"
+    - sh -c "go run . completion zsh > completions/zd.zsh"
+    - sh -c "go run . completion fish > completions/zd.fish"
+    # Generate man pages
+    - mkdir -p manpages
+    - sh -c "go run . man --dir manpages"
+    - sh -c "gzip -f manpages/*.1"
+
 builds:
   - env:
       - CGO_ENABLED=0
@@ -7,9 +20,25 @@ builds:
       - linux
       - darwin
       - windows
+      - freebsd
     goarch:
       - amd64
       - arm64
+      - "386"
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: "386"
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -19,10 +48,22 @@ builds:
 
 archives:
   - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - README.md
+      - LICENSE*
+      - completions/*
+      - manpages/*.1.gz
 
 nfpms:
   - id: default
@@ -34,18 +75,45 @@ nfpms:
     formats:
       - deb
       - rpm
+      - apk
     bindir: /usr/bin
+    contents:
+      - src: completions/zd.bash
+        dst: /usr/share/bash-completion/completions/zd
+      - src: completions/zd.zsh
+        dst: /usr/share/zsh/vendor-completions/_zd
+      - src: completions/zd.fish
+        dst: /usr/share/fish/vendor_completions.d/zd.fish
+      - src: manpages/zd.1.gz
+        dst: /usr/share/man/man1/zd.1.gz
 
 checksum:
   name_template: "checksums.txt"
 
 changelog:
   sort: asc
+  use: github
+  groups:
+    - title: New Features
+      regexp: '^feat'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix'
+      order: 1
+    - title: Performance
+      regexp: '^perf'
+      order: 2
+    - title: Documentation
+      regexp: '^docs'
+      order: 3
+    - title: Others
+      order: 999
   filters:
     exclude:
-      - "^docs:"
       - "^test:"
       - "^ci:"
+      - "^chore:"
+      - "^build:"
 
 brews:
   - repository:
@@ -57,5 +125,18 @@ brews:
     license: "MIT"
     install: |
       bin.install "zd"
+      bash_completion.install "completions/zd.bash" => "zd"
+      zsh_completion.install "completions/zd.zsh" => "_zd"
+      fish_completion.install "completions/zd.fish"
+      man1.install Dir["manpages/*.1.gz"]
     test: |
       system "#{bin}/zd", "version"
+
+scoops:
+  - repository:
+      owner: johanviberg
+      name: scoop-bucket
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/johanviberg/zd"
+    description: "AI agent-friendly CLI for Zendesk"
+    license: MIT

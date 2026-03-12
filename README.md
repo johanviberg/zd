@@ -1,7 +1,7 @@
 # Zendesk CLI (`zd`)
 
 [![Release](https://img.shields.io/github/v/release/johanviberg/zd)](https://github.com/johanviberg/zd/releases/latest)
-[![CI](https://github.com/johanviberg/zd/actions/workflows/release.yml/badge.svg)](https://github.com/johanviberg/zd/actions/workflows/release.yml)
+[![Build](https://github.com/johanviberg/zd/actions/workflows/build.yml/badge.svg)](https://github.com/johanviberg/zd/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/johanviberg/zd)](https://goreportcard.com/report/github.com/johanviberg/zd)
 [![Go Reference](https://pkg.go.dev/badge/github.com/johanviberg/zd.svg)](https://pkg.go.dev/github.com/johanviberg/zd)
 [![License: MIT](https://img.shields.io/github/license/johanviberg/zd)](LICENSE)
@@ -18,10 +18,19 @@ An unofficial, agent-friendly command-line interface for Zendesk's ticketing RES
 
 ## Installation
 
-### Homebrew
+### Homebrew (macOS / Linux)
 
 ```bash
 brew install johanviberg/tap/zd
+```
+
+This also installs shell completions and man pages.
+
+### Scoop (Windows)
+
+```bash
+scoop bucket add zd https://github.com/johanviberg/scoop-bucket
+scoop install zd
 ```
 
 ### go install
@@ -35,16 +44,24 @@ go install github.com/johanviberg/zd@latest
 Download the `.deb` package from the [latest release](https://github.com/johanviberg/zd/releases/latest):
 
 ```bash
-sudo dpkg -i zd_*_linux_amd64.deb
+sudo dpkg -i zd_*_linux_x86_64.deb
 ```
 
 ### Linux (rpm)
 
-Download the `.rpm` package from the [latest release](https://github.com/johanviberg/zd/releases/latest):
+```bash
+sudo rpm -i zd_*_linux_x86_64.rpm
+```
+
+### Alpine Linux (apk)
 
 ```bash
-sudo rpm -i zd_*_linux_amd64.rpm
+sudo apk add --allow-untrusted zd_*_linux_x86_64.apk
 ```
+
+### Binary download
+
+Pre-built binaries are available for Linux, macOS, Windows, and FreeBSD on amd64, arm64, 386, and armv7. Download from the [latest release](https://github.com/johanviberg/zd/releases/latest) and place the `zd` binary on your `PATH`.
 
 ### Build from source
 
@@ -52,6 +69,25 @@ sudo rpm -i zd_*_linux_amd64.rpm
 git clone https://github.com/johanviberg/zd.git
 cd zd
 go build -o zd
+```
+
+## Shell completions
+
+If you installed via Homebrew, deb, rpm, or apk, completions are set up automatically. For other installation methods:
+
+```bash
+# Bash
+zd completion bash > /etc/bash_completion.d/zd          # Linux
+zd completion bash > $(brew --prefix)/etc/bash_completion.d/zd  # macOS
+
+# Zsh
+zd completion zsh > "${fpath[1]}/_zd"
+
+# Fish
+zd completion fish > ~/.config/fish/completions/zd.fish
+
+# PowerShell
+zd completion powershell > zd.ps1  # then source from your profile
 ```
 
 ## Authentication
