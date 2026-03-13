@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/johanviberg/zd/internal/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildUserMap(t *testing.T) {
@@ -13,15 +15,9 @@ func TestBuildUserMap(t *testing.T) {
 	}
 
 	m := buildUserMap(users)
-	if len(m) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(m))
-	}
-	if m[1].Name != "Alice" {
-		t.Errorf("expected Alice, got %q", m[1].Name)
-	}
-	if m[2].Email != "bob@example.com" {
-		t.Errorf("expected bob@example.com, got %q", m[2].Email)
-	}
+	require.Len(t, m, 2)
+	assert.Equal(t, "Alice", m[1].Name)
+	assert.Equal(t, "bob@example.com", m[2].Email)
 }
 
 func TestEnrichTicket(t *testing.T) {
@@ -39,21 +35,11 @@ func TestEnrichTicket(t *testing.T) {
 
 	result := enrichTicket(ticket, userMap)
 	m, ok := result.(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected map, got %T", result)
-	}
-	if m["requester_name"] != "Jane" {
-		t.Errorf("expected requester_name 'Jane', got %v", m["requester_name"])
-	}
-	if m["requester_email"] != "jane@example.com" {
-		t.Errorf("expected requester_email 'jane@example.com', got %v", m["requester_email"])
-	}
-	if m["assignee_name"] != "John" {
-		t.Errorf("expected assignee_name 'John', got %v", m["assignee_name"])
-	}
-	if m["assignee_email"] != "john@example.com" {
-		t.Errorf("expected assignee_email 'john@example.com', got %v", m["assignee_email"])
-	}
+	require.True(t, ok, "expected map, got %T", result)
+	assert.Equal(t, "Jane", m["requester_name"])
+	assert.Equal(t, "jane@example.com", m["requester_email"])
+	assert.Equal(t, "John", m["assignee_name"])
+	assert.Equal(t, "john@example.com", m["assignee_email"])
 }
 
 func TestEnrichTicket_NoUsers(t *testing.T) {
@@ -65,7 +51,6 @@ func TestEnrichTicket_NoUsers(t *testing.T) {
 
 	result := enrichTicket(ticket, nil)
 	// Should return the original ticket unchanged
-	if _, ok := result.(types.Ticket); !ok {
-		t.Errorf("expected types.Ticket, got %T", result)
-	}
+	_, ok := result.(types.Ticket)
+	assert.True(t, ok, "expected types.Ticket, got %T", result)
 }

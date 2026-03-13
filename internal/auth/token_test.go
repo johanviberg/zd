@@ -6,6 +6,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSaveAndLoadCredentials(t *testing.T) {
@@ -21,36 +24,22 @@ func TestSaveAndLoadCredentials(t *testing.T) {
 		APIToken:  "abc123",
 	}
 
-	if err := SaveCredentials("default", creds); err != nil {
-		t.Fatalf("SaveCredentials: %v", err)
-	}
+	err := SaveCredentials("default", creds)
+	require.NoError(t, err, "SaveCredentials")
 
 	// Verify file permissions (Unix only; Windows always reports 0666)
 	path := filepath.Join(tmpDir, "zd", "credentials.json")
 	if runtime.GOOS != "windows" {
 		info, err := os.Stat(path)
-		if err != nil {
-			t.Fatalf("stat credentials: %v", err)
-		}
-		perm := info.Mode().Perm()
-		if perm != 0600 {
-			t.Errorf("expected permissions 0600, got %o", perm)
-		}
+		require.NoError(t, err, "stat credentials")
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 	}
 
 	loaded, err := LoadCredentials("default")
-	if err != nil {
-		t.Fatalf("LoadCredentials: %v", err)
-	}
-	if loaded == nil {
-		t.Fatal("expected credentials, got nil")
-	}
-	if loaded.Email != "test@example.com" {
-		t.Errorf("expected email 'test@example.com', got %q", loaded.Email)
-	}
-	if loaded.APIToken != "abc123" {
-		t.Errorf("expected token 'abc123', got %q", loaded.APIToken)
-	}
+	require.NoError(t, err, "LoadCredentials")
+	require.NotNil(t, loaded)
+	assert.Equal(t, "test@example.com", loaded.Email)
+	assert.Equal(t, "abc123", loaded.APIToken)
 }
 
 func TestLoadCredentials_NotFound(t *testing.T) {
@@ -58,12 +47,8 @@ func TestLoadCredentials_NotFound(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	loaded, err := LoadCredentials("nonexistent")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if loaded != nil {
-		t.Errorf("expected nil, got %+v", loaded)
-	}
+	require.NoError(t, err, "unexpected error")
+	assert.Nil(t, loaded)
 }
 
 func TestDeleteCredentials(t *testing.T) {
@@ -79,17 +64,12 @@ func TestDeleteCredentials(t *testing.T) {
 
 	SaveCredentials("default", creds)
 
-	if err := DeleteCredentials("default"); err != nil {
-		t.Fatalf("DeleteCredentials: %v", err)
-	}
+	err := DeleteCredentials("default")
+	require.NoError(t, err, "DeleteCredentials")
 
 	loaded, err := LoadCredentials("default")
-	if err != nil {
-		t.Fatalf("LoadCredentials after delete: %v", err)
-	}
-	if loaded != nil {
-		t.Errorf("expected nil after delete, got %+v", loaded)
-	}
+	require.NoError(t, err, "LoadCredentials after delete")
+	assert.Nil(t, loaded)
 }
 
 func TestResolveCredentials_EnvVars(t *testing.T) {
@@ -97,18 +77,10 @@ func TestResolveCredentials_EnvVars(t *testing.T) {
 	t.Setenv("ZENDESK_SUBDOMAIN", "env-subdomain")
 
 	creds, err := ResolveCredentials("default")
-	if err != nil {
-		t.Fatalf("ResolveCredentials: %v", err)
-	}
-	if creds == nil {
-		t.Fatal("expected credentials from env vars")
-	}
-	if creds.OAuthToken != "env-oauth-token" {
-		t.Errorf("expected oauth token 'env-oauth-token', got %q", creds.OAuthToken)
-	}
-	if creds.Subdomain != "env-subdomain" {
-		t.Errorf("expected subdomain 'env-subdomain', got %q", creds.Subdomain)
-	}
+	require.NoError(t, err, "ResolveCredentials")
+	require.NotNil(t, creds, "expected credentials from env vars")
+	assert.Equal(t, "env-oauth-token", creds.OAuthToken)
+	assert.Equal(t, "env-subdomain", creds.Subdomain)
 }
 
 func TestResolveCredentials_APITokenEnv(t *testing.T) {
@@ -119,18 +91,10 @@ func TestResolveCredentials_APITokenEnv(t *testing.T) {
 	t.Setenv("ZENDESK_SUBDOMAIN", "env-sub")
 
 	creds, err := ResolveCredentials("default")
-	if err != nil {
-		t.Fatalf("ResolveCredentials: %v", err)
-	}
-	if creds == nil {
-		t.Fatal("expected credentials from env vars")
-	}
-	if creds.Method != "token" {
-		t.Errorf("expected method 'token', got %q", creds.Method)
-	}
-	if creds.Email != "env@example.com" {
-		t.Errorf("expected email 'env@example.com', got %q", creds.Email)
-	}
+	require.NoError(t, err, "ResolveCredentials")
+	require.NotNil(t, creds, "expected credentials from env vars")
+	assert.Equal(t, "token", creds.Method)
+	assert.Equal(t, "env@example.com", creds.Email)
 }
 
 func TestLoadCredentials_SymlinkRejected(t *testing.T) {
@@ -152,12 +116,8 @@ func TestLoadCredentials_SymlinkRejected(t *testing.T) {
 	os.Symlink(realPath, credPath)
 
 	_, err := LoadCredentials("default")
-	if err == nil {
-		t.Fatal("expected error for symlink, got nil")
-	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Errorf("expected symlink error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for symlink, got nil")
+	assert.Contains(t, err.Error(), "symlink")
 }
 
 func TestLoadCredentials_InsecurePermissions(t *testing.T) {
@@ -174,12 +134,8 @@ func TestLoadCredentials_InsecurePermissions(t *testing.T) {
 	os.WriteFile(credPath, []byte(`{"profiles":{}}`), 0644)
 
 	_, err := LoadCredentials("default")
-	if err == nil {
-		t.Fatal("expected error for insecure permissions, got nil")
-	}
-	if !strings.Contains(err.Error(), "insecure permissions") {
-		t.Errorf("expected permissions error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for insecure permissions, got nil")
+	assert.Contains(t, err.Error(), "insecure permissions")
 }
 
 func TestSaveCredentials_AtomicWrite(t *testing.T) {
@@ -193,28 +149,21 @@ func TestSaveCredentials_AtomicWrite(t *testing.T) {
 		APIToken:  "abc123",
 	}
 
-	if err := SaveCredentials("default", creds); err != nil {
-		t.Fatalf("SaveCredentials: %v", err)
-	}
+	err := SaveCredentials("default", creds)
+	require.NoError(t, err, "SaveCredentials")
 
 	// Verify file permissions are 0600 (Unix only)
 	path := filepath.Join(tmpDir, "zd", "credentials.json")
 	if runtime.GOOS != "windows" {
 		info, err := os.Stat(path)
-		if err != nil {
-			t.Fatalf("stat: %v", err)
-		}
-		if info.Mode().Perm() != 0600 {
-			t.Errorf("expected permissions 0600, got %o", info.Mode().Perm())
-		}
+		require.NoError(t, err, "stat")
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 	}
 
 	// Verify no temp files left behind
 	entries, _ := os.ReadDir(filepath.Join(tmpDir, "zd"))
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), ".credentials-") {
-			t.Errorf("temp file left behind: %s", e.Name())
-		}
+		assert.False(t, strings.HasPrefix(e.Name(), ".credentials-"), "temp file left behind: %s", e.Name())
 	}
 }
 
@@ -235,12 +184,8 @@ func TestSaveCredentials_SymlinkRejected(t *testing.T) {
 	os.Symlink(realPath, credPath)
 
 	err := SaveCredentials("default", &ProfileCredentials{Method: "token"})
-	if err == nil {
-		t.Fatal("expected error for symlink, got nil")
-	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Errorf("expected symlink error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for symlink, got nil")
+	assert.Contains(t, err.Error(), "symlink")
 }
 
 func TestMultipleProfiles(t *testing.T) {
@@ -257,10 +202,6 @@ func TestMultipleProfiles(t *testing.T) {
 	prod, _ := LoadCredentials("prod")
 	staging, _ := LoadCredentials("staging")
 
-	if prod.Subdomain != "prod-co" {
-		t.Errorf("expected prod subdomain 'prod-co', got %q", prod.Subdomain)
-	}
-	if staging.Subdomain != "staging-co" {
-		t.Errorf("expected staging subdomain 'staging-co', got %q", staging.Subdomain)
-	}
+	assert.Equal(t, "prod-co", prod.Subdomain)
+	assert.Equal(t, "staging-co", staging.Subdomain)
 }

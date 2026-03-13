@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/johanviberg/zd/internal/auth"
@@ -53,7 +53,7 @@ var tuiCmd = &cobra.Command{
 		}
 
 		app := tui.NewApp(ticketSvc, searchSvc, userSvc, subdomain, buildVersion)
-		p := tea.NewProgram(app, tea.WithAltScreen())
+		p := tea.NewProgram(app)
 
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("running TUI: %w", err)

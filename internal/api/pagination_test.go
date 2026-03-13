@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/johanviberg/zd/internal/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHasNextPage(t *testing.T) {
@@ -18,16 +19,12 @@ func TestHasNextPage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HasNextPage(tt.meta); got != tt.expected {
-				t.Errorf("HasNextPage() = %v, want %v", got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, HasNextPage(tt.meta))
 		})
 	}
 }
 
 func TestNextCursor(t *testing.T) {
 	meta := types.PageMeta{AfterCursor: "cursor123"}
-	if got := NextCursor(meta); got != "cursor123" {
-		t.Errorf("NextCursor() = %q, want %q", got, "cursor123")
-	}
+	assert.Equal(t, "cursor123", NextCursor(meta))
 }

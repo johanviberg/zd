@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textarea"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
@@ -59,7 +59,7 @@ func newActionsModel(tickets zendesk.TicketService, users zendesk.UserService) a
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+	s.Style = lipgloss.NewStyle().Foreground(ac("#1D4ED8", "#93C5FD"))
 
 	return actionsModel{
 		tickets:  tickets,
@@ -207,7 +207,7 @@ func (m actionsModel) Update(msg tea.Msg) (actionsModel, tea.Cmd) {
 		m.err = msg.err
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.submitting {
 			return m, nil
 		}

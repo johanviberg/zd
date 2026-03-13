@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoad_Empty(t *testing.T) {
@@ -13,15 +16,9 @@ func TestLoad_Empty(t *testing.T) {
 	t.Setenv("ZENDESK_SUBDOMAIN", "")
 
 	cfg, err := Load("default")
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.Subdomain != "" {
-		t.Errorf("expected empty subdomain, got %q", cfg.Subdomain)
-	}
-	if cfg.Profile != "default" {
-		t.Errorf("expected profile 'default', got %q", cfg.Profile)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "", cfg.Subdomain)
+	assert.Equal(t, "default", cfg.Profile)
 }
 
 func TestLoad_FromFile(t *testing.T) {
@@ -41,15 +38,9 @@ profiles:
 	os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(configYAML), 0600)
 
 	cfg, err := Load("default")
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.Subdomain != "mycompany" {
-		t.Errorf("expected subdomain 'mycompany', got %q", cfg.Subdomain)
-	}
-	if cfg.OAuthClientID != "client123" {
-		t.Errorf("expected client ID 'client123', got %q", cfg.OAuthClientID)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "mycompany", cfg.Subdomain)
+	assert.Equal(t, "client123", cfg.OAuthClientID)
 }
 
 func TestLoad_EnvOverride(t *testing.T) {
@@ -66,12 +57,8 @@ profiles:
 `), 0600)
 
 	cfg, err := Load("default")
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.Subdomain != "env-override" {
-		t.Errorf("expected env override 'env-override', got %q", cfg.Subdomain)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "env-override", cfg.Subdomain)
 }
 
 func TestSave(t *testing.T) {
@@ -84,17 +71,12 @@ func TestSave(t *testing.T) {
 		OAuthClientID: "saved-id",
 	}
 
-	if err := Save("test", cfg); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
+	err := Save("test", cfg)
+	require.NoError(t, err)
 
 	loaded, err := Load("test")
-	if err != nil {
-		t.Fatalf("Load after save: %v", err)
-	}
-	if loaded.Subdomain != "saved-co" {
-		t.Errorf("expected subdomain 'saved-co', got %q", loaded.Subdomain)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "saved-co", loaded.Subdomain)
 }
 
 func TestSetValue(t *testing.T) {
@@ -102,15 +84,10 @@ func TestSetValue(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 	t.Setenv("ZENDESK_SUBDOMAIN", "")
 
-	if err := SetValue("default", "subdomain", "set-value"); err != nil {
-		t.Fatalf("SetValue: %v", err)
-	}
+	err := SetValue("default", "subdomain", "set-value")
+	require.NoError(t, err)
 
 	cfg, err := Load("default")
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.Subdomain != "set-value" {
-		t.Errorf("expected subdomain 'set-value', got %q", cfg.Subdomain)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "set-value", cfg.Subdomain)
 }

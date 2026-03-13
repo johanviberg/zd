@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
@@ -49,7 +49,7 @@ type detailModel struct {
 func newDetailModel(tickets zendesk.TicketService) detailModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+	s.Style = lipgloss.NewStyle().Foreground(ac("#1D4ED8", "#93C5FD"))
 	return detailModel{
 		tickets: tickets,
 		loading: true,
@@ -88,8 +88,8 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		if m.ready {
-			m.viewport.Width = msg.Width - 4
-			m.viewport.Height = msg.Height - 6
+			m.viewport.SetWidth(msg.Width - 4)
+			m.viewport.SetHeight(msg.Height - 6)
 			if m.ticket != nil {
 				m.viewport.SetContent(m.renderContent())
 			}
@@ -105,7 +105,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		for _, u := range msg.users {
 			m.users[u.ID] = u
 		}
-		m.viewport = viewport.New(m.width-4, m.height-6)
+		m.viewport = viewport.New(viewport.WithWidth(m.width-4), viewport.WithHeight(m.height-6))
 		m.viewport.SetContent(m.renderContent())
 		m.ready = true
 		return m, nil
@@ -138,7 +138,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 	case imagePickerCloseMsg:
 		m.imagePicker = m.imagePicker.close()
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.imagePicker.active {
 			var cmd tea.Cmd
 			m.imagePicker, cmd = m.imagePicker.Update(msg)

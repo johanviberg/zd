@@ -8,6 +8,8 @@ import (
 
 	"github.com/johanviberg/zd/internal/auth"
 	"github.com/johanviberg/zd/internal/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testClient(t *testing.T, handler http.Handler) *Client {
@@ -37,15 +39,9 @@ func TestDoJSON_Success(t *testing.T) {
 	}
 
 	err := client.doJSON(context.Background(), "GET", "/api/v2/tickets/1", nil, &result)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Ticket.ID != 1 {
-		t.Errorf("expected ID 1, got %d", result.Ticket.ID)
-	}
-	if result.Ticket.Subject != "Test" {
-		t.Errorf("expected subject 'Test', got %q", result.Ticket.Subject)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), result.Ticket.ID)
+	assert.Equal(t, "Test", result.Ticket.Subject)
 }
 
 func TestDoJSON_NotFound(t *testing.T) {
@@ -58,17 +54,11 @@ func TestDoJSON_NotFound(t *testing.T) {
 
 	var result interface{}
 	err := client.doJSON(context.Background(), "GET", "/api/v2/tickets/999", nil, &result)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	require.Error(t, err)
 
 	appErr, ok := err.(*types.AppError)
-	if !ok {
-		t.Fatalf("expected AppError, got %T", err)
-	}
-	if appErr.ExitCode != types.ExitNotFound {
-		t.Errorf("expected exit code %d, got %d", types.ExitNotFound, appErr.ExitCode)
-	}
+	require.True(t, ok, "expected AppError, got %T", err)
+	assert.Equal(t, types.ExitNotFound, appErr.ExitCode)
 }
 
 func TestDoJSON_AuthError(t *testing.T) {
@@ -81,17 +71,11 @@ func TestDoJSON_AuthError(t *testing.T) {
 
 	var result interface{}
 	err := client.doJSON(context.Background(), "GET", "/api/v2/tickets/1", nil, &result)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	require.Error(t, err)
 
 	appErr, ok := err.(*types.AppError)
-	if !ok {
-		t.Fatalf("expected AppError, got %T", err)
-	}
-	if appErr.ExitCode != types.ExitAuthError {
-		t.Errorf("expected exit code %d, got %d", types.ExitAuthError, appErr.ExitCode)
-	}
+	require.True(t, ok, "expected AppError, got %T", err)
+	assert.Equal(t, types.ExitAuthError, appErr.ExitCode)
 }
 
 func TestDoJSON_RateLimited(t *testing.T) {
@@ -129,12 +113,8 @@ func TestDoJSON_RateLimited(t *testing.T) {
 	}
 
 	err := client.doJSON(context.Background(), "GET", "/api/v2/tickets/1", nil, &result)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if attempts < 2 {
-		t.Errorf("expected at least 2 attempts, got %d", attempts)
-	}
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, attempts, 2, "expected at least 2 attempts")
 }
 
 func TestRetryTransport_POST_NotRetried(t *testing.T) {
@@ -160,9 +140,7 @@ func TestRetryTransport_POST_NotRetried(t *testing.T) {
 
 	var result interface{}
 	_ = client.doJSON(context.Background(), "POST", "/api/v2/tickets", nil, &result)
-	if attempts != 1 {
-		t.Errorf("expected exactly 1 attempt for POST on 5xx, got %d", attempts)
-	}
+	assert.Equal(t, 1, attempts, "expected exactly 1 attempt for POST on 5xx")
 }
 
 func TestRetryTransport_GET_Retried(t *testing.T) {
@@ -197,12 +175,8 @@ func TestRetryTransport_GET_Retried(t *testing.T) {
 		} `json:"ticket"`
 	}
 	err := client.doJSON(context.Background(), "GET", "/api/v2/tickets/1", nil, &result)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if attempts != 3 {
-		t.Errorf("expected 3 attempts for GET on 5xx, got %d", attempts)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 3, attempts, "expected 3 attempts for GET on 5xx")
 }
 
 func TestSanitizeErrorBody(t *testing.T) {
@@ -219,9 +193,7 @@ func TestSanitizeErrorBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := sanitizeErrorBody([]byte(tt.body))
-			if got != tt.want {
-				t.Errorf("got %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -229,12 +201,8 @@ func TestSanitizeErrorBody(t *testing.T) {
 func TestAuthTransport_TokenAuth(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			t.Error("missing Authorization header")
-		}
-		if len(authHeader) < 6 || authHeader[:6] != "Basic " {
-			t.Errorf("expected Basic auth, got %q", authHeader)
-		}
+		assert.NotEmpty(t, authHeader, "missing Authorization header")
+		assert.True(t, len(authHeader) >= 6 && authHeader[:6] == "Basic ", "expected Basic auth, got %q", authHeader)
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	})
@@ -259,18 +227,13 @@ func TestAuthTransport_TokenAuth(t *testing.T) {
 	}
 
 	_, err := client.do(context.Background(), "GET", "/api/v2/tickets", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestAuthTransport_OAuthAuth(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		expected := "Bearer test-oauth-token"
-		if authHeader != expected {
-			t.Errorf("expected %q, got %q", expected, authHeader)
-		}
+		assert.Equal(t, "Bearer test-oauth-token", authHeader)
 		w.WriteHeader(200)
 		w.Write([]byte(`{}`))
 	})
@@ -294,7 +257,5 @@ func TestAuthTransport_OAuthAuth(t *testing.T) {
 	}
 
 	_, err := client.do(context.Background(), "GET", "/api/v2/tickets", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }

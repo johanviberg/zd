@@ -3,7 +3,9 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/johanviberg/zd/internal/types"
 )
@@ -21,15 +23,9 @@ func TestImagePickerOpen(t *testing.T) {
 	items := testImageEntries()
 	m = m.open(items)
 
-	if !m.active {
-		t.Fatal("expected picker to be active")
-	}
-	if m.cursor != 0 {
-		t.Errorf("expected cursor 0, got %d", m.cursor)
-	}
-	if len(m.items) != 3 {
-		t.Errorf("expected 3 items, got %d", len(m.items))
-	}
+	require.True(t, m.active, "expected picker to be active")
+	assert.Equal(t, 0, m.cursor, "expected cursor 0")
+	assert.Len(t, m.items, 3, "expected 3 items")
 }
 
 func TestImagePickerNavigation(t *testing.T) {
@@ -37,34 +33,24 @@ func TestImagePickerNavigation(t *testing.T) {
 	m = m.open(testImageEntries())
 
 	// Move down
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	if m.cursor != 1 {
-		t.Errorf("expected cursor 1 after down, got %d", m.cursor)
-	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	assert.Equal(t, 1, m.cursor, "expected cursor 1 after down")
 
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	if m.cursor != 2 {
-		t.Errorf("expected cursor 2 after second down, got %d", m.cursor)
-	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	assert.Equal(t, 2, m.cursor, "expected cursor 2 after second down")
 
 	// Should not go past last item
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	if m.cursor != 2 {
-		t.Errorf("expected cursor to stay at 2, got %d", m.cursor)
-	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	assert.Equal(t, 2, m.cursor, "expected cursor to stay at 2")
 
 	// Move up
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	if m.cursor != 1 {
-		t.Errorf("expected cursor 1 after up, got %d", m.cursor)
-	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	assert.Equal(t, 1, m.cursor, "expected cursor 1 after up")
 
 	// Should not go below 0
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	if m.cursor != 0 {
-		t.Errorf("expected cursor 0, got %d", m.cursor)
-	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	assert.Equal(t, 0, m.cursor, "expected cursor 0")
 }
 
 func TestImagePickerEnter(t *testing.T) {
@@ -72,55 +58,36 @@ func TestImagePickerEnter(t *testing.T) {
 	m = m.open(testImageEntries())
 
 	// Move to second item
-	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 	// Press enter
-	m, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	if m.active {
-		t.Fatal("expected picker to close after enter")
-	}
-
-	if cmd == nil {
-		t.Fatal("expected a command from enter")
-	}
+	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	assert.False(t, m.active, "expected picker to close after enter")
+	require.NotNil(t, cmd, "expected a command from enter")
 
 	msg := cmd()
 	openMsg, ok := msg.(imageOpenMsg)
-	if !ok {
-		t.Fatalf("expected imageOpenMsg, got %T", msg)
-	}
-	if openMsg.url != "https://example.com/3.jpg" {
-		t.Errorf("expected URL https://example.com/3.jpg, got %s", openMsg.url)
-	}
+	require.True(t, ok, "expected imageOpenMsg, got %T", msg)
+	assert.Equal(t, "https://example.com/3.jpg", openMsg.url, "expected URL https://example.com/3.jpg")
 }
 
 func TestImagePickerEsc(t *testing.T) {
 	m := imagePickerModel{}
 	m = m.open(testImageEntries())
 
-	m, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
-	if m.active {
-		t.Fatal("expected picker to close after esc")
-	}
-
-	if cmd == nil {
-		t.Fatal("expected a command from esc")
-	}
+	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	assert.False(t, m.active, "expected picker to close after esc")
+	require.NotNil(t, cmd, "expected a command from esc")
 
 	msg := cmd()
-	if _, ok := msg.(imagePickerCloseMsg); !ok {
-		t.Fatalf("expected imagePickerCloseMsg, got %T", msg)
-	}
+	_, ok := msg.(imagePickerCloseMsg)
+	require.True(t, ok, "expected imagePickerCloseMsg, got %T", msg)
 }
 
 func TestImagePickerViewEmpty(t *testing.T) {
 	m := imagePickerModel{}
-	if m.View() != "" {
-		t.Error("expected empty view when not active")
-	}
+	assert.Equal(t, "", m.View(), "expected empty view when not active")
 
 	m.active = true
-	if m.View() != "" {
-		t.Error("expected empty view when no items")
-	}
+	assert.Equal(t, "", m.View(), "expected empty view when no items")
 }

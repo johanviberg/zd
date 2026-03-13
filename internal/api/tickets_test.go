@@ -10,21 +10,17 @@ import (
 	"testing"
 
 	"github.com/johanviberg/zd/internal/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTicketService_List(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/tickets_list.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/tickets" {
-			t.Errorf("expected /api/v2/tickets, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/v2/tickets", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -33,30 +29,18 @@ func TestTicketService_List(t *testing.T) {
 	svc := NewTicketService(client)
 
 	page, err := svc.List(context.Background(), &types.ListTicketsOptions{Limit: 10})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Tickets) != 3 {
-		t.Errorf("expected 3 tickets, got %d", len(page.Tickets))
-	}
-	if !page.Meta.HasMore {
-		t.Error("expected has_more to be true")
-	}
-	if page.Tickets[0].ID != 1 {
-		t.Errorf("expected first ticket ID 1, got %d", page.Tickets[0].ID)
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Tickets, 3)
+	assert.True(t, page.Meta.HasMore, "expected has_more to be true")
+	assert.Equal(t, int64(1), page.Tickets[0].ID)
 }
 
 func TestTicketService_Get(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/ticket.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v2/tickets/12345" {
-			t.Errorf("expected /api/v2/tickets/12345, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "/api/v2/tickets/12345", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -65,29 +49,16 @@ func TestTicketService_Get(t *testing.T) {
 	svc := NewTicketService(client)
 
 	result, err := svc.Get(context.Background(), 12345, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Ticket.ID != 12345 {
-		t.Errorf("expected ID 12345, got %d", result.Ticket.ID)
-	}
-	if result.Ticket.Subject != "Test Ticket" {
-		t.Errorf("expected subject 'Test Ticket', got %q", result.Ticket.Subject)
-	}
-	if result.Ticket.Status != "open" {
-		t.Errorf("expected status 'open', got %q", result.Ticket.Status)
-	}
-	if len(result.Users) != 0 {
-		t.Errorf("expected no users, got %d", len(result.Users))
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(12345), result.Ticket.ID)
+	assert.Equal(t, "Test Ticket", result.Ticket.Subject)
+	assert.Equal(t, "open", result.Ticket.Status)
+	assert.Empty(t, result.Users)
 }
 
 func TestTicketService_Get_WithInclude(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		include := r.URL.Query().Get("include")
-		if include != "users" {
-			t.Errorf("expected include=users, got %q", include)
-		}
+		assert.Equal(t, "users", r.URL.Query().Get("include"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ticket":{"id":1,"subject":"Test","status":"open","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}}`))
 	})
@@ -96,16 +67,12 @@ func TestTicketService_Get_WithInclude(t *testing.T) {
 	svc := NewTicketService(client)
 
 	_, err := svc.Get(context.Background(), 1, &types.GetTicketOptions{Include: "users"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestTicketService_Get_WithUsers(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/ticket_with_users.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -116,34 +83,19 @@ func TestTicketService_Get_WithUsers(t *testing.T) {
 	svc := NewTicketService(client)
 
 	result, err := svc.Get(context.Background(), 12345, &types.GetTicketOptions{Include: "users"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Ticket.ID != 12345 {
-		t.Errorf("expected ticket ID 12345, got %d", result.Ticket.ID)
-	}
-	if len(result.Users) != 2 {
-		t.Fatalf("expected 2 users, got %d", len(result.Users))
-	}
-	if result.Users[0].Name != "Jane Requester" {
-		t.Errorf("expected first user 'Jane Requester', got %q", result.Users[0].Name)
-	}
-	if result.Users[1].Email != "john@example.com" {
-		t.Errorf("expected second user email 'john@example.com', got %q", result.Users[1].Email)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(12345), result.Ticket.ID)
+	require.Len(t, result.Users, 2)
+	assert.Equal(t, "Jane Requester", result.Users[0].Name)
+	assert.Equal(t, "john@example.com", result.Users[1].Email)
 }
 
 func TestTicketService_List_WithInclude(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/tickets_list_with_users.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		include := r.URL.Query().Get("include")
-		if include != "users" {
-			t.Errorf("expected include=users, got %q", include)
-		}
+		assert.Equal(t, "users", r.URL.Query().Get("include"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -152,28 +104,16 @@ func TestTicketService_List_WithInclude(t *testing.T) {
 	svc := NewTicketService(client)
 
 	page, err := svc.List(context.Background(), &types.ListTicketsOptions{Include: "users"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Tickets) != 2 {
-		t.Errorf("expected 2 tickets, got %d", len(page.Tickets))
-	}
-	if len(page.Users) != 3 {
-		t.Fatalf("expected 3 users, got %d", len(page.Users))
-	}
-	if page.Users[0].Name != "Jane Requester" {
-		t.Errorf("expected first user 'Jane Requester', got %q", page.Users[0].Name)
-	}
+	require.NoError(t, err)
+	assert.Len(t, page.Tickets, 2)
+	require.Len(t, page.Users, 3)
+	assert.Equal(t, "Jane Requester", page.Users[0].Name)
 }
 
 func TestTicketService_Create(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/tickets" {
-			t.Errorf("expected /api/v2/tickets, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/v2/tickets", r.URL.Path)
 
 		body, _ := io.ReadAll(r.Body)
 		var req struct {
@@ -186,9 +126,7 @@ func TestTicketService_Create(t *testing.T) {
 		}
 		json.Unmarshal(body, &req)
 
-		if req.Ticket.Subject != "New Ticket" {
-			t.Errorf("expected subject 'New Ticket', got %q", req.Ticket.Subject)
-		}
+		assert.Equal(t, "New Ticket", req.Ticket.Subject)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(201)
@@ -202,22 +140,14 @@ func TestTicketService_Create(t *testing.T) {
 		Subject: "New Ticket",
 		Comment: types.Comment{Body: "Test body"},
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if ticket.ID != 999 {
-		t.Errorf("expected ID 999, got %d", ticket.ID)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(999), ticket.ID)
 }
 
 func TestTicketService_Update(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PUT" {
-			t.Errorf("expected PUT, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/tickets/100" {
-			t.Errorf("expected /api/v2/tickets/100, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "/api/v2/tickets/100", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ticket":{"id":100,"subject":"Updated","status":"pending","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-02T00:00:00Z"}}`))
 	})
@@ -228,22 +158,14 @@ func TestTicketService_Update(t *testing.T) {
 	ticket, err := svc.Update(context.Background(), 100, &types.UpdateTicketRequest{
 		Status: "pending",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if ticket.Status != "pending" {
-		t.Errorf("expected status 'pending', got %q", ticket.Status)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "pending", ticket.Status)
 }
 
 func TestTicketService_Delete(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "DELETE" {
-			t.Errorf("expected DELETE, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/tickets/100" {
-			t.Errorf("expected /api/v2/tickets/100, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "DELETE", r.Method)
+		assert.Equal(t, "/api/v2/tickets/100", r.URL.Path)
 		w.WriteHeader(204)
 	})
 
@@ -251,24 +173,16 @@ func TestTicketService_Delete(t *testing.T) {
 	svc := NewTicketService(client)
 
 	err := svc.Delete(context.Background(), 100)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestTicketService_ListComments(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/comments.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/tickets/42/comments" {
-			t.Errorf("expected /api/v2/tickets/42/comments, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/v2/tickets/42/comments", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -277,37 +191,19 @@ func TestTicketService_ListComments(t *testing.T) {
 	svc := NewTicketService(client)
 
 	page, err := svc.ListComments(context.Background(), 42, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Comments) != 2 {
-		t.Fatalf("expected 2 comments, got %d", len(page.Comments))
-	}
-	if page.Comments[0].Body != "First comment" {
-		t.Errorf("expected body 'First comment', got %q", page.Comments[0].Body)
-	}
-	if page.Comments[0].AuthorID != 10 {
-		t.Errorf("expected author_id 10, got %d", page.Comments[0].AuthorID)
-	}
-	if page.Comments[1].Body != "Internal note" {
-		t.Errorf("expected body 'Internal note', got %q", page.Comments[1].Body)
-	}
-	if !page.Meta.HasMore {
-		t.Error("expected has_more to be true")
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Comments, 2)
+	assert.Equal(t, "First comment", page.Comments[0].Body)
+	assert.Equal(t, int64(10), page.Comments[0].AuthorID)
+	assert.Equal(t, "Internal note", page.Comments[1].Body)
+	assert.True(t, page.Meta.HasMore, "expected has_more to be true")
 }
 
 func TestTicketService_ListComments_WithOptions(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("page[size]"); got != "10" {
-			t.Errorf("expected page[size]=10, got %q", got)
-		}
-		if got := r.URL.Query().Get("sort_order"); got != "desc" {
-			t.Errorf("expected sort_order=desc, got %q", got)
-		}
-		if got := r.URL.Query().Get("include"); got != "users" {
-			t.Errorf("expected include=users, got %q", got)
-		}
+		assert.Equal(t, "10", r.URL.Query().Get("page[size]"))
+		assert.Equal(t, "desc", r.URL.Query().Get("sort_order"))
+		assert.Equal(t, "users", r.URL.Query().Get("include"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"comments":[],"meta":{"has_more":false}}`))
 	})
@@ -320,16 +216,12 @@ func TestTicketService_ListComments_WithOptions(t *testing.T) {
 		SortOrder: "desc",
 		Include:   "users",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestTicketService_ListComments_WithUsers(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/comments_with_users.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -342,36 +234,20 @@ func TestTicketService_ListComments_WithUsers(t *testing.T) {
 	page, err := svc.ListComments(context.Background(), 42, &types.ListCommentsOptions{
 		Include: "users",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Comments) != 2 {
-		t.Fatalf("expected 2 comments, got %d", len(page.Comments))
-	}
-	if len(page.Users) != 2 {
-		t.Fatalf("expected 2 users, got %d", len(page.Users))
-	}
-	if page.Users[0].Name != "Alice Agent" {
-		t.Errorf("expected first user 'Alice Agent', got %q", page.Users[0].Name)
-	}
-	if page.Users[1].Email != "bob@example.com" {
-		t.Errorf("expected second user email 'bob@example.com', got %q", page.Users[1].Email)
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Comments, 2)
+	require.Len(t, page.Users, 2)
+	assert.Equal(t, "Alice Agent", page.Users[0].Name)
+	assert.Equal(t, "bob@example.com", page.Users[1].Email)
 }
 
 func TestTicketService_ListAudits(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/audits.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/tickets/42/audits" {
-			t.Errorf("expected /api/v2/tickets/42/audits, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/v2/tickets/42/audits", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -380,46 +256,22 @@ func TestTicketService_ListAudits(t *testing.T) {
 	svc := NewTicketService(client)
 
 	page, err := svc.ListAudits(context.Background(), 42, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Audits) != 3 {
-		t.Fatalf("expected 3 audits, got %d", len(page.Audits))
-	}
-	if page.Audits[0].ID != 1001 {
-		t.Errorf("expected first audit ID 1001, got %d", page.Audits[0].ID)
-	}
-	if page.Audits[0].TicketID != 42 {
-		t.Errorf("expected ticket_id 42, got %d", page.Audits[0].TicketID)
-	}
-	if len(page.Audits[0].Events) != 2 {
-		t.Errorf("expected 2 events in first audit, got %d", len(page.Audits[0].Events))
-	}
-	if page.Audits[0].Events[0].Type != "Comment" {
-		t.Errorf("expected first event type 'Comment', got %q", page.Audits[0].Events[0].Type)
-	}
-	if page.Audits[0].Events[0].Body != "Initial description of the issue" {
-		t.Errorf("unexpected body: %q", page.Audits[0].Events[0].Body)
-	}
-	if len(page.Audits[0].Events[0].Attachments) != 1 {
-		t.Errorf("expected 1 attachment, got %d", len(page.Audits[0].Events[0].Attachments))
-	}
-	if !page.Meta.HasMore {
-		t.Error("expected has_more to be true")
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Audits, 3)
+	assert.Equal(t, int64(1001), page.Audits[0].ID)
+	assert.Equal(t, int64(42), page.Audits[0].TicketID)
+	assert.Len(t, page.Audits[0].Events, 2)
+	assert.Equal(t, "Comment", page.Audits[0].Events[0].Type)
+	assert.Equal(t, "Initial description of the issue", page.Audits[0].Events[0].Body)
+	assert.Len(t, page.Audits[0].Events[0].Attachments, 1)
+	assert.True(t, page.Meta.HasMore, "expected has_more to be true")
 }
 
 func TestTicketService_ListAudits_WithOptions(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("page[size]"); got != "10" {
-			t.Errorf("expected page[size]=10, got %q", got)
-		}
-		if got := r.URL.Query().Get("sort_order"); got != "asc" {
-			t.Errorf("expected sort_order=asc, got %q", got)
-		}
-		if got := r.URL.Query().Get("include"); got != "users" {
-			t.Errorf("expected include=users, got %q", got)
-		}
+		assert.Equal(t, "10", r.URL.Query().Get("page[size]"))
+		assert.Equal(t, "asc", r.URL.Query().Get("sort_order"))
+		assert.Equal(t, "users", r.URL.Query().Get("include"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"audits":[],"meta":{"has_more":false}}`))
 	})
@@ -432,9 +284,7 @@ func TestTicketService_ListAudits_WithOptions(t *testing.T) {
 		SortOrder: "asc",
 		Include:   "users",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestTicketService_List_Pagination(t *testing.T) {
@@ -457,19 +307,11 @@ func TestTicketService_List_Pagination(t *testing.T) {
 
 	// First page
 	p1, err := svc.List(context.Background(), &types.ListTicketsOptions{Limit: 1})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !p1.Meta.HasMore {
-		t.Error("expected has_more true on first page")
-	}
+	require.NoError(t, err)
+	assert.True(t, p1.Meta.HasMore, "expected has_more true on first page")
 
 	// Second page
 	p2, err := svc.List(context.Background(), &types.ListTicketsOptions{Limit: 1, Cursor: p1.Meta.AfterCursor})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if p2.Meta.HasMore {
-		t.Error("expected has_more false on second page")
-	}
+	require.NoError(t, err)
+	assert.False(t, p2.Meta.HasMore, "expected has_more false on second page")
 }

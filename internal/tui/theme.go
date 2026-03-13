@@ -1,22 +1,32 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
+
+func ac(light, dark string) compat.AdaptiveColor {
+	return compat.AdaptiveColor{
+		Light: lipgloss.Color(light),
+		Dark:  lipgloss.Color(dark),
+	}
+}
 
 var (
-	statusColors = map[string]lipgloss.AdaptiveColor{
-		"new":     {Light: "#6B21A8", Dark: "#C084FC"},
-		"open":    {Light: "#B91C1C", Dark: "#F87171"},
-		"pending": {Light: "#B45309", Dark: "#FBBF24"},
-		"hold":    {Light: "#4B5563", Dark: "#9CA3AF"},
-		"solved":  {Light: "#15803D", Dark: "#4ADE80"},
-		"closed":  {Light: "#374151", Dark: "#6B7280"},
+	statusColors = map[string]compat.AdaptiveColor{
+		"new":     ac("#6B21A8", "#C084FC"),
+		"open":    ac("#B91C1C", "#F87171"),
+		"pending": ac("#B45309", "#FBBF24"),
+		"hold":    ac("#4B5563", "#9CA3AF"),
+		"solved":  ac("#15803D", "#4ADE80"),
+		"closed":  ac("#374151", "#6B7280"),
 	}
 
-	priorityColors = map[string]lipgloss.AdaptiveColor{
-		"urgent": {Light: "#991B1B", Dark: "#FCA5A5"},
-		"high":   {Light: "#C2410C", Dark: "#FB923C"},
-		"normal": {Light: "#1D4ED8", Dark: "#93C5FD"},
-		"low":    {Light: "#4B5563", Dark: "#9CA3AF"},
+	priorityColors = map[string]compat.AdaptiveColor{
+		"urgent": ac("#991B1B", "#FCA5A5"),
+		"high":   ac("#C2410C", "#FB923C"),
+		"normal": ac("#1D4ED8", "#93C5FD"),
+		"low":    ac("#4B5563", "#9CA3AF"),
 	}
 
 	statusIcons = map[string]string{
@@ -37,97 +47,97 @@ var (
 
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#FAFAFA"})
+			Foreground(ac("#1a1a2e", "#FAFAFA"))
 
 	subtitleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#4B5563", Dark: "#9CA3AF"})
+			Foreground(ac("#4B5563", "#9CA3AF"))
 
 	selectedStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#FAFAFA"})
+			Foreground(ac("#1a1a2e", "#FAFAFA"))
 
 	dimStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#6B7280"})
+			Foreground(ac("#6B7280", "#6B7280"))
 
 	helpBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"}).
-			Background(lipgloss.AdaptiveColor{Light: "#F3F4F6", Dark: "#1F2937"})
+			Foreground(ac("#6B7280", "#9CA3AF")).
+			Background(ac("#F3F4F6", "#1F2937"))
 
 	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#DC2626", Dark: "#F87171"}).
+			Foreground(ac("#DC2626", "#F87171")).
 			Bold(true)
 
 	borderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"})
+			BorderForeground(ac("#D1D5DB", "#374151"))
 
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#1F2937", Dark: "#F9FAFB"}).
+			Foreground(ac("#1F2937", "#F9FAFB")).
 			BorderBottom(true).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"})
+			BorderForeground(ac("#D1D5DB", "#374151"))
 
 	labelStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"}).
+			Foreground(ac("#6B7280", "#9CA3AF")).
 			Width(14)
 
 	valueStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#111827", Dark: "#F3F4F6"})
+			Foreground(ac("#111827", "#F3F4F6"))
 
 	commentAuthorStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "#1F2937", Dark: "#E5E7EB"})
+				Foreground(ac("#1F2937", "#E5E7EB"))
 
 	commentTimeStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"})
+				Foreground(ac("#9CA3AF", "#6B7280"))
 
 	internalNoteStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#D97706", Dark: "#FBBF24"}).
+				Foreground(ac("#D97706", "#FBBF24")).
 				Italic(true)
 
 	tagStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#4338CA", Dark: "#A5B4FC"}).
-			Background(lipgloss.AdaptiveColor{Light: "#EEF2FF", Dark: "#1E1B4B"}).
+			Foreground(ac("#4338CA", "#A5B4FC")).
+			Background(ac("#EEF2FF", "#1E1B4B")).
 			Padding(0, 1)
 
 	newTicketStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#0E7490", Dark: "#22D3EE"})
+			Foreground(ac("#0E7490", "#22D3EE"))
 
 	dividerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"})
+			Foreground(ac("#D1D5DB", "#374151"))
 
 	focusBorderStyle = lipgloss.NewStyle().
 				BorderLeft(true).
 				BorderStyle(lipgloss.NormalBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+				BorderForeground(ac("#1D4ED8", "#93C5FD"))
 
 	chartTitleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#374151", Dark: "#D1D5DB"})
+			Foreground(ac("#374151", "#D1D5DB"))
 
 	chartLabelStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"})
+			Foreground(ac("#6B7280", "#9CA3AF"))
 
 	cmdPaletteCategoryStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
+				Foreground(ac("#7C3AED", "#A78BFA"))
 
 	cmdPaletteSelectedStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#1a1a2e"}).
-				Background(lipgloss.AdaptiveColor{Light: "#F9A87A", Dark: "#F9A87A"})
+				Foreground(ac("#1a1a2e", "#1a1a2e")).
+				Background(ac("#F9A87A", "#F9A87A"))
 
 	cmdPaletteShortcutStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"})
+				Foreground(ac("#9CA3AF", "#6B7280"))
 
 	cmdPaletteItemStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#1F2937", Dark: "#E5E7EB"})
+				Foreground(ac("#1F2937", "#E5E7EB"))
 
 	kanbanCardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"}).
+			BorderForeground(ac("#D1D5DB", "#374151")).
 			Padding(0, 1)
 
 	kanbanCardSelectedStyle = lipgloss.NewStyle().
@@ -139,47 +149,47 @@ var (
 				Bold(true).
 				BorderBottom(true).
 				BorderStyle(lipgloss.NormalBorder()).
-				BorderForeground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#374151"}).
+				BorderForeground(ac("#D1D5DB", "#374151")).
 				Padding(0, 1)
 
 	attachmentStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#0369A1", Dark: "#7DD3FC"})
+			Foreground(ac("#0369A1", "#7DD3FC"))
 
 	attachmentImageStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
+				Foreground(ac("#7C3AED", "#A78BFA"))
 
 	ccChipStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#1E40AF", Dark: "#93C5FD"}).
-			Background(lipgloss.AdaptiveColor{Light: "#DBEAFE", Dark: "#1E3A5F"}).
+			Foreground(ac("#1E40AF", "#93C5FD")).
+			Background(ac("#DBEAFE", "#1E3A5F")).
 			Padding(0, 1)
 
 	ccDisabledStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"}).
+			Foreground(ac("#9CA3AF", "#6B7280")).
 			Italic(true)
 
 	ccResultHighlightStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Light: "#1a1a2e", Dark: "#FAFAFA"})
+				Foreground(ac("#1a1a2e", "#FAFAFA"))
 
 	timelineConnectorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#D1D5DB", Dark: "#4B5563"})
+				Foreground(ac("#D1D5DB", "#4B5563"))
 
 	timelineChangeStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#6B7280", Dark: "#9CA3AF"})
+				Foreground(ac("#6B7280", "#9CA3AF"))
 
 	timelineArrowStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#9CA3AF", Dark: "#6B7280"})
+				Foreground(ac("#9CA3AF", "#6B7280"))
 
 	logoAccentStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#7C3AED", Dark: "#A78BFA"})
+			Foreground(ac("#7C3AED", "#A78BFA"))
 
 	logoTextStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+			Foreground(ac("#1D4ED8", "#93C5FD"))
 
 	accentStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"}).
+			Foreground(ac("#1D4ED8", "#93C5FD")).
 			Bold(true)
 )
 

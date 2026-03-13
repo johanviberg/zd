@@ -7,21 +7,17 @@ import (
 	"testing"
 
 	"github.com/johanviberg/zd/internal/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestArticleService_List(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/articles_list.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v2/help_center/articles" {
-			t.Errorf("expected /api/v2/help_center/articles, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/v2/help_center/articles", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -30,34 +26,18 @@ func TestArticleService_List(t *testing.T) {
 	svc := NewArticleService(client)
 
 	page, err := svc.List(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Articles) != 3 {
-		t.Errorf("expected 3 articles, got %d", len(page.Articles))
-	}
-	if !page.Meta.HasMore {
-		t.Error("expected has_more to be true")
-	}
-	if page.Articles[0].ID != 101 {
-		t.Errorf("expected first article ID 101, got %d", page.Articles[0].ID)
-	}
-	if page.Articles[0].Title != "Getting Started Guide" {
-		t.Errorf("expected title 'Getting Started Guide', got %q", page.Articles[0].Title)
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Articles, 3)
+	assert.True(t, page.Meta.HasMore, "expected has_more to be true")
+	assert.Equal(t, int64(101), page.Articles[0].ID)
+	assert.Equal(t, "Getting Started Guide", page.Articles[0].Title)
 }
 
 func TestArticleService_List_WithOptions(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("page[size]"); got != "10" {
-			t.Errorf("expected page[size]=10, got %q", got)
-		}
-		if got := r.URL.Query().Get("sort_by"); got != "updated_at" {
-			t.Errorf("expected sort_by=updated_at, got %q", got)
-		}
-		if got := r.URL.Query().Get("sort_order"); got != "asc" {
-			t.Errorf("expected sort_order=asc, got %q", got)
-		}
+		assert.Equal(t, "10", r.URL.Query().Get("page[size]"))
+		assert.Equal(t, "updated_at", r.URL.Query().Get("sort_by"))
+		assert.Equal(t, "asc", r.URL.Query().Get("sort_order"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"articles":[],"meta":{"has_more":false}}`))
 	})
@@ -70,21 +50,15 @@ func TestArticleService_List_WithOptions(t *testing.T) {
 		SortBy:    "updated_at",
 		SortOrder: "asc",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestArticleService_Get(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/article.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v2/help_center/articles/101" {
-			t.Errorf("expected /api/v2/help_center/articles/101, got %s", r.URL.Path)
-		}
+		assert.Equal(t, "/api/v2/help_center/articles/101", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -93,18 +67,10 @@ func TestArticleService_Get(t *testing.T) {
 	svc := NewArticleService(client)
 
 	result, err := svc.Get(context.Background(), 101)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Article.ID != 101 {
-		t.Errorf("expected ID 101, got %d", result.Article.ID)
-	}
-	if result.Article.Title != "Getting Started Guide" {
-		t.Errorf("expected title 'Getting Started Guide', got %q", result.Article.Title)
-	}
-	if !result.Article.Promoted {
-		t.Error("expected promoted to be true")
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(101), result.Article.ID)
+	assert.Equal(t, "Getting Started Guide", result.Article.Title)
+	assert.True(t, result.Article.Promoted, "expected promoted to be true")
 }
 
 func TestArticleService_Get_NotFound(t *testing.T) {
@@ -117,32 +83,20 @@ func TestArticleService_Get_NotFound(t *testing.T) {
 	svc := NewArticleService(client)
 
 	_, err := svc.Get(context.Background(), 999)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	require.Error(t, err)
 
 	appErr, ok := err.(*types.AppError)
-	if !ok {
-		t.Fatalf("expected AppError, got %T", err)
-	}
-	if appErr.ExitCode != types.ExitNotFound {
-		t.Errorf("expected exit code %d, got %d", types.ExitNotFound, appErr.ExitCode)
-	}
+	require.True(t, ok, "expected AppError, got %T", err)
+	assert.Equal(t, types.ExitNotFound, appErr.ExitCode)
 }
 
 func TestArticleService_Search(t *testing.T) {
 	fixture, err := os.ReadFile("../../testdata/articles_search.json")
-	if err != nil {
-		t.Fatalf("reading fixture: %v", err)
-	}
+	require.NoError(t, err, "reading fixture")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v2/help_center/articles/search" {
-			t.Errorf("expected /api/v2/help_center/articles/search, got %s", r.URL.Path)
-		}
-		if got := r.URL.Query().Get("query"); got != "password reset" {
-			t.Errorf("expected query='password reset', got %q", got)
-		}
+		assert.Equal(t, "/api/v2/help_center/articles/search", r.URL.Path)
+		assert.Equal(t, "password reset", r.URL.Query().Get("query"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(fixture)
 	})
@@ -151,16 +105,8 @@ func TestArticleService_Search(t *testing.T) {
 	svc := NewArticleService(client)
 
 	page, err := svc.Search(context.Background(), "password reset", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Results) != 1 {
-		t.Errorf("expected 1 result, got %d", len(page.Results))
-	}
-	if page.Results[0].Title != "Password Reset Instructions" {
-		t.Errorf("expected title 'Password Reset Instructions', got %q", page.Results[0].Title)
-	}
-	if page.Count != 1 {
-		t.Errorf("expected count 1, got %d", page.Count)
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Results, 1)
+	assert.Equal(t, "Password Reset Instructions", page.Results[0].Title)
+	assert.Equal(t, 1, page.Count)
 }

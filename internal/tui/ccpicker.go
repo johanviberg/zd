@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
@@ -134,7 +134,7 @@ func (m ccPickerModel) Update(msg tea.Msg) (ccPickerModel, tea.Cmd) {
 		m.loading = false
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, keys.Back):
 			m = m.deactivate()
@@ -171,7 +171,7 @@ func (m ccPickerModel) Update(msg tea.Msg) (ccPickerModel, tea.Cmd) {
 			}
 			return m, nil
 
-		case msg.Type == tea.KeyBackspace:
+		case msg.Code == tea.KeyBackspace:
 			if m.input.Value() == "" {
 				m = m.removeLastEntry()
 				return m, nil

@@ -4,6 +4,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetSetBasic(t *testing.T) {
@@ -11,20 +14,14 @@ func TestGetSetBasic(t *testing.T) {
 	c.Set("foo", "bar")
 
 	v, ok := c.Get("foo")
-	if !ok {
-		t.Fatal("expected cache hit")
-	}
-	if v != "bar" {
-		t.Fatalf("expected bar, got %v", v)
-	}
+	require.True(t, ok, "expected cache hit")
+	assert.Equal(t, "bar", v)
 }
 
 func TestGetMiss(t *testing.T) {
 	c := New(time.Minute)
 	_, ok := c.Get("missing")
-	if ok {
-		t.Fatal("expected cache miss")
-	}
+	assert.False(t, ok, "expected cache miss")
 }
 
 func TestTTLExpiry(t *testing.T) {
@@ -34,9 +31,7 @@ func TestTTLExpiry(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 
 	_, ok := c.Get("key")
-	if ok {
-		t.Fatal("expected cache miss after TTL expiry")
-	}
+	assert.False(t, ok, "expected cache miss after TTL expiry")
 }
 
 func TestInvalidateByPrefix(t *testing.T) {
@@ -48,18 +43,17 @@ func TestInvalidateByPrefix(t *testing.T) {
 
 	c.Invalidate("ticket:get:1:")
 
-	if _, ok := c.Get("ticket:get:1:users"); ok {
-		t.Fatal("expected ticket:get:1:users to be invalidated")
-	}
-	if _, ok := c.Get("ticket:get:2:users"); !ok {
-		t.Fatal("ticket:get:2:users should not be invalidated")
-	}
-	if _, ok := c.Get("ticket:list:50"); !ok {
-		t.Fatal("ticket:list should not be invalidated")
-	}
-	if _, ok := c.Get("search:query1"); !ok {
-		t.Fatal("search should not be invalidated")
-	}
+	_, ok := c.Get("ticket:get:1:users")
+	assert.False(t, ok, "expected ticket:get:1:users to be invalidated")
+
+	_, ok = c.Get("ticket:get:2:users")
+	assert.True(t, ok, "ticket:get:2:users should not be invalidated")
+
+	_, ok = c.Get("ticket:list:50")
+	assert.True(t, ok, "ticket:list should not be invalidated")
+
+	_, ok = c.Get("search:query1")
+	assert.True(t, ok, "search should not be invalidated")
 }
 
 func TestInvalidateMultiplePrefixes(t *testing.T) {
@@ -70,15 +64,14 @@ func TestInvalidateMultiplePrefixes(t *testing.T) {
 
 	c.Invalidate("ticket:list:", "search:")
 
-	if _, ok := c.Get("ticket:list:a"); ok {
-		t.Fatal("expected ticket:list to be invalidated")
-	}
-	if _, ok := c.Get("search:q"); ok {
-		t.Fatal("expected search to be invalidated")
-	}
-	if _, ok := c.Get("ticket:get:5:"); !ok {
-		t.Fatal("ticket:get:5 should not be invalidated")
-	}
+	_, ok := c.Get("ticket:list:a")
+	assert.False(t, ok, "expected ticket:list to be invalidated")
+
+	_, ok = c.Get("search:q")
+	assert.False(t, ok, "expected search to be invalidated")
+
+	_, ok = c.Get("ticket:get:5:")
+	assert.True(t, ok, "ticket:get:5 should not be invalidated")
 }
 
 func TestClear(t *testing.T) {
@@ -88,12 +81,11 @@ func TestClear(t *testing.T) {
 
 	c.Clear()
 
-	if _, ok := c.Get("a"); ok {
-		t.Fatal("expected all entries cleared")
-	}
-	if _, ok := c.Get("b"); ok {
-		t.Fatal("expected all entries cleared")
-	}
+	_, ok := c.Get("a")
+	assert.False(t, ok, "expected all entries cleared")
+
+	_, ok = c.Get("b")
+	assert.False(t, ok, "expected all entries cleared")
 }
 
 func TestConcurrentAccess(t *testing.T) {

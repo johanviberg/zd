@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/johanviberg/zd/internal/nlq"
 	"github.com/johanviberg/zd/internal/types"
@@ -76,7 +76,7 @@ type listModel struct {
 func newListModel(tickets zendesk.TicketService, search zendesk.SearchService) listModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+	s.Style = lipgloss.NewStyle().Foreground(ac("#1D4ED8", "#93C5FD"))
 	return listModel{
 		tickets:   tickets,
 		search:    search,
@@ -311,7 +311,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 			return m, cmd
 		}
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.loading {
 			return m, nil
 		}

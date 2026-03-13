@@ -3,8 +3,8 @@ package tui
 import (
 	"strings"
 
+	"charm.land/glamour/v2"
 	htmltomd "github.com/JohannesKaufmann/html-to-markdown/v2"
-	"github.com/charmbracelet/glamour"
 )
 
 // renderMarkdown converts HTML content to styled terminal output.
@@ -31,7 +31,7 @@ func htmlToMarkdown(html string) (string, error) {
 // renderGlamour renders markdown through glamour for terminal output.
 func renderGlamour(md string, width int) (string, error) {
 	r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithEnvironmentConfig(),
 		glamour.WithWordWrap(width),
 	)
 	if err != nil {

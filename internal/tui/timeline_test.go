@@ -4,6 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/johanviberg/zd/internal/types"
 )
 
@@ -21,15 +24,9 @@ func TestBuildTimeline_CommentOnlyAudit(t *testing.T) {
 	}
 
 	nodes := buildTimeline(audits)
-	if len(nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(nodes))
-	}
-	if len(nodes[0].Comments) != 1 {
-		t.Errorf("expected 1 comment, got %d", len(nodes[0].Comments))
-	}
-	if len(nodes[0].Changes) != 0 {
-		t.Errorf("expected 0 changes, got %d", len(nodes[0].Changes))
-	}
+	require.Len(t, nodes, 1, "expected 1 node")
+	assert.Len(t, nodes[0].Comments, 1, "expected 1 comment")
+	assert.Len(t, nodes[0].Changes, 0, "expected 0 changes")
 }
 
 func TestBuildTimeline_ChangeOnlyAudit(t *testing.T) {
@@ -44,15 +41,9 @@ func TestBuildTimeline_ChangeOnlyAudit(t *testing.T) {
 	}
 
 	nodes := buildTimeline(audits)
-	if len(nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(nodes))
-	}
-	if len(nodes[0].Comments) != 0 {
-		t.Errorf("expected 0 comments, got %d", len(nodes[0].Comments))
-	}
-	if len(nodes[0].Changes) != 1 {
-		t.Errorf("expected 1 change, got %d", len(nodes[0].Changes))
-	}
+	require.Len(t, nodes, 1, "expected 1 node")
+	assert.Len(t, nodes[0].Comments, 0, "expected 0 comments")
+	assert.Len(t, nodes[0].Changes, 1, "expected 1 change")
 }
 
 func TestBuildTimeline_MixedAudit(t *testing.T) {
@@ -69,15 +60,9 @@ func TestBuildTimeline_MixedAudit(t *testing.T) {
 	}
 
 	nodes := buildTimeline(audits)
-	if len(nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(nodes))
-	}
-	if len(nodes[0].Comments) != 1 {
-		t.Errorf("expected 1 comment, got %d", len(nodes[0].Comments))
-	}
-	if len(nodes[0].Changes) != 2 {
-		t.Errorf("expected 2 changes, got %d", len(nodes[0].Changes))
-	}
+	require.Len(t, nodes, 1, "expected 1 node")
+	assert.Len(t, nodes[0].Comments, 1, "expected 1 comment")
+	assert.Len(t, nodes[0].Changes, 2, "expected 2 changes")
 }
 
 func TestBuildTimeline_FiltersIrrelevantEvents(t *testing.T) {
@@ -93,9 +78,7 @@ func TestBuildTimeline_FiltersIrrelevantEvents(t *testing.T) {
 	}
 
 	nodes := buildTimeline(audits)
-	if len(nodes) != 0 {
-		t.Fatalf("expected 0 nodes for irrelevant events, got %d", len(nodes))
-	}
+	require.Len(t, nodes, 0, "expected 0 nodes for irrelevant events")
 }
 
 func TestFilterCommentNodes(t *testing.T) {
@@ -109,9 +92,7 @@ func TestFilterCommentNodes(t *testing.T) {
 	}
 
 	filtered := filterCommentNodes(nodes)
-	if len(filtered) != 2 {
-		t.Fatalf("expected 2 comment nodes, got %d", len(filtered))
-	}
+	require.Len(t, filtered, 2, "expected 2 comment nodes")
 }
 
 func TestRenderTimeline_NonEmpty(t *testing.T) {
@@ -140,12 +121,8 @@ func TestRenderTimeline_NonEmpty(t *testing.T) {
 	}
 
 	result := renderTimeline(nodes, users, 60)
-	if result == "" {
-		t.Fatal("expected non-empty timeline render")
-	}
-	if len(result) < 20 {
-		t.Errorf("timeline render too short: %q", result)
-	}
+	require.NotEmpty(t, result, "expected non-empty timeline render")
+	assert.GreaterOrEqual(t, len(result), 20, "timeline render too short: %q", result)
 }
 
 func TestWrapText(t *testing.T) {
@@ -164,8 +141,6 @@ func TestWrapText(t *testing.T) {
 
 	for _, tt := range tests {
 		result := wrapText(tt.text, tt.width)
-		if len(result) != tt.lines {
-			t.Errorf("wrapText(%q, %d) = %d lines, want %d", tt.text, tt.width, len(result), tt.lines)
-		}
+		assert.Len(t, result, tt.lines, "wrapText(%q, %d)", tt.text, tt.width)
 	}
 }

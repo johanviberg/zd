@@ -3,16 +3,14 @@ package tui
 import (
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRenderLogo(t *testing.T) {
 	out := renderLogo()
-	if out == "" {
-		t.Fatal("expected non-empty logo")
-	}
+	require.NotEmpty(t, out, "expected non-empty logo")
 	w := lipgloss.Width(out)
-	if w < 3 || w > 20 {
-		t.Errorf("unexpected logo width: %d", w)
-	}
+	assert.True(t, w >= 3 && w <= 20, "unexpected logo width: %d", w)
 }

@@ -5,20 +5,18 @@ import (
 	"testing"
 
 	"github.com/johanviberg/zd/internal/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStoreGenerates100Tickets(t *testing.T) {
 	s := NewStore()
-	if got := len(s.Tickets); got != 100 {
-		t.Fatalf("expected 100 tickets, got %d", got)
-	}
+	assert.Len(t, s.Tickets, 100)
 }
 
 func TestStoreGenerates10Users(t *testing.T) {
 	s := NewStore()
-	if got := len(s.Users); got != 10 {
-		t.Fatalf("expected 10 users, got %d", got)
-	}
+	assert.Len(t, s.Users, 10)
 }
 
 func TestStoreDeterministic(t *testing.T) {
@@ -40,18 +38,10 @@ func TestTicketServiceList(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.List(ctx, &types.ListTicketsOptions{Limit: 10})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Tickets) != 10 {
-		t.Fatalf("expected 10 tickets, got %d", len(page.Tickets))
-	}
-	if !page.Meta.HasMore {
-		t.Fatal("expected HasMore=true")
-	}
-	if page.Count != 100 {
-		t.Fatalf("expected count=100, got %d", page.Count)
-	}
+	require.NoError(t, err)
+	require.Len(t, page.Tickets, 10)
+	assert.True(t, page.Meta.HasMore, "expected HasMore=true")
+	assert.Equal(t, 100, page.Count)
 }
 
 func TestTicketServiceListPagination(t *testing.T) {
@@ -60,17 +50,11 @@ func TestTicketServiceListPagination(t *testing.T) {
 	ctx := context.Background()
 
 	page1, err := svc.List(ctx, &types.ListTicketsOptions{Limit: 25})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !page1.Meta.HasMore {
-		t.Fatal("expected HasMore after first page")
-	}
+	require.NoError(t, err)
+	assert.True(t, page1.Meta.HasMore, "expected HasMore after first page")
 
 	page2, err := svc.List(ctx, &types.ListTicketsOptions{Limit: 25, Cursor: page1.Meta.AfterCursor})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Ensure no overlap
 	ids := make(map[int64]bool)
@@ -90,17 +74,11 @@ func TestTicketServiceListFilterStatus(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.List(ctx, &types.ListTicketsOptions{Status: "open", Limit: 100})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 	for _, ticket := range page.Tickets {
-		if ticket.Status != "open" {
-			t.Fatalf("expected status=open, got %s", ticket.Status)
-		}
+		assert.Equal(t, "open", ticket.Status)
 	}
-	if len(page.Tickets) == 0 {
-		t.Fatal("expected at least one open ticket")
-	}
+	assert.NotEmpty(t, page.Tickets, "expected at least one open ticket")
 }
 
 func TestTicketServiceListSort(t *testing.T) {
@@ -109,13 +87,9 @@ func TestTicketServiceListSort(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.List(ctx, &types.ListTicketsOptions{Sort: "created_at", SortOrder: "asc", Limit: 100})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 	for i := 1; i < len(page.Tickets); i++ {
-		if page.Tickets[i].CreatedAt.Before(page.Tickets[i-1].CreatedAt) {
-			t.Fatal("tickets not sorted by created_at ascending")
-		}
+		assert.False(t, page.Tickets[i].CreatedAt.Before(page.Tickets[i-1].CreatedAt), "tickets not sorted by created_at ascending")
 	}
 }
 
@@ -125,12 +99,8 @@ func TestTicketServiceGet(t *testing.T) {
 	ctx := context.Background()
 
 	result, err := svc.Get(ctx, 1, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Ticket.ID != 1 {
-		t.Fatalf("expected ticket ID=1, got %d", result.Ticket.ID)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), result.Ticket.ID)
 }
 
 func TestTicketServiceGetNotFound(t *testing.T) {
@@ -139,16 +109,10 @@ func TestTicketServiceGetNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := svc.Get(ctx, 999, nil)
-	if err == nil {
-		t.Fatal("expected error for non-existent ticket")
-	}
+	require.Error(t, err)
 	appErr, ok := err.(*types.AppError)
-	if !ok {
-		t.Fatalf("expected AppError, got %T", err)
-	}
-	if appErr.Code != "not_found" {
-		t.Fatalf("expected not_found, got %s", appErr.Code)
-	}
+	require.True(t, ok, "expected AppError, got %T", err)
+	assert.Equal(t, "not_found", appErr.Code)
 }
 
 func TestTicketServiceGetWithUsers(t *testing.T) {
@@ -157,12 +121,8 @@ func TestTicketServiceGetWithUsers(t *testing.T) {
 	ctx := context.Background()
 
 	result, err := svc.Get(ctx, 1, &types.GetTicketOptions{Include: "users"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(result.Users) == 0 {
-		t.Fatal("expected users to be populated")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, result.Users, "expected users to be populated")
 }
 
 func TestTicketServiceCreate(t *testing.T) {
@@ -175,27 +135,15 @@ func TestTicketServiceCreate(t *testing.T) {
 		Comment:  types.Comment{Body: "Initial comment"},
 		Priority: "high",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if ticket.Subject != "Test ticket" {
-		t.Fatalf("expected subject 'Test ticket', got '%s'", ticket.Subject)
-	}
-	if ticket.Status != "new" {
-		t.Fatalf("expected status 'new', got '%s'", ticket.Status)
-	}
-	if ticket.Priority != "high" {
-		t.Fatalf("expected priority 'high', got '%s'", ticket.Priority)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "Test ticket", ticket.Subject)
+	assert.Equal(t, "new", ticket.Status)
+	assert.Equal(t, "high", ticket.Priority)
 
 	// Verify stored
 	result, err := svc.Get(ctx, ticket.ID, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Ticket.Subject != "Test ticket" {
-		t.Fatal("created ticket not found in store")
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "Test ticket", result.Ticket.Subject, "created ticket not found in store")
 }
 
 func TestTicketServiceUpdate(t *testing.T) {
@@ -207,15 +155,9 @@ func TestTicketServiceUpdate(t *testing.T) {
 		Status:   "solved",
 		Priority: "urgent",
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if updated.Status != "solved" {
-		t.Fatalf("expected status 'solved', got '%s'", updated.Status)
-	}
-	if updated.Priority != "urgent" {
-		t.Fatalf("expected priority 'urgent', got '%s'", updated.Priority)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "solved", updated.Status)
+	assert.Equal(t, "urgent", updated.Priority)
 }
 
 func TestTicketServiceUpdateWithComment(t *testing.T) {
@@ -228,12 +170,8 @@ func TestTicketServiceUpdateWithComment(t *testing.T) {
 	_, err := svc.Update(ctx, 1, &types.UpdateTicketRequest{
 		Comment: &types.Comment{Body: "New comment", Public: &pub},
 	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(s.Comments[1]) != commentsBefore+1 {
-		t.Fatal("expected comment to be added")
-	}
+	require.NoError(t, err)
+	assert.Len(t, s.Comments[1], commentsBefore+1, "expected comment to be added")
 }
 
 func TestTicketServiceDelete(t *testing.T) {
@@ -242,14 +180,10 @@ func TestTicketServiceDelete(t *testing.T) {
 	ctx := context.Background()
 
 	err := svc.Delete(ctx, 1)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	_, err = svc.Get(ctx, 1, nil)
-	if err == nil {
-		t.Fatal("expected error after delete")
-	}
+	assert.Error(t, err, "expected error after delete")
 }
 
 func TestTicketServiceDeleteNotFound(t *testing.T) {
@@ -258,9 +192,7 @@ func TestTicketServiceDeleteNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	err := svc.Delete(ctx, 999)
-	if err == nil {
-		t.Fatal("expected error for non-existent ticket")
-	}
+	assert.Error(t, err, "expected error for non-existent ticket")
 }
 
 func TestTicketServiceListComments(t *testing.T) {
@@ -269,12 +201,8 @@ func TestTicketServiceListComments(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.ListComments(ctx, 1, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Comments) == 0 {
-		t.Fatal("expected at least one comment")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, page.Comments, "expected at least one comment")
 }
 
 func TestSearchServiceSubstring(t *testing.T) {
@@ -283,15 +211,9 @@ func TestSearchServiceSubstring(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.Search(ctx, "billing", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Results) == 0 {
-		t.Fatal("expected results for 'billing'")
-	}
-	if page.Count < len(page.Results) {
-		t.Fatalf("count %d should be >= results %d", page.Count, len(page.Results))
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, page.Results, "expected results for 'billing'")
+	assert.GreaterOrEqual(t, page.Count, len(page.Results))
 }
 
 func TestSearchServiceFieldPrefix(t *testing.T) {
@@ -300,17 +222,11 @@ func TestSearchServiceFieldPrefix(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.Search(ctx, "status:open", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 	for _, r := range page.Results {
-		if r.Status != "open" {
-			t.Fatalf("expected status=open, got %s", r.Status)
-		}
+		assert.Equal(t, "open", r.Status)
 	}
-	if len(page.Results) == 0 {
-		t.Fatal("expected at least one open ticket")
-	}
+	assert.NotEmpty(t, page.Results, "expected at least one open ticket")
 }
 
 func TestSearchServiceCombined(t *testing.T) {
@@ -319,13 +235,10 @@ func TestSearchServiceCombined(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.Search(ctx, "status:open priority:high", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 	for _, r := range page.Results {
-		if r.Status != "open" || r.Priority != "high" {
-			t.Fatalf("expected status=open priority=high, got status=%s priority=%s", r.Status, r.Priority)
-		}
+		assert.Equal(t, "open", r.Status)
+		assert.Equal(t, "high", r.Priority)
 	}
 }
 
@@ -335,12 +248,8 @@ func TestSearchServiceTagFilter(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := svc.Search(ctx, "tags:billing", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(page.Results) == 0 {
-		t.Fatal("expected results for tags:billing")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, page.Results, "expected results for tags:billing")
 	for _, r := range page.Results {
 		found := false
 		for _, tag := range r.Tags {
@@ -349,9 +258,7 @@ func TestSearchServiceTagFilter(t *testing.T) {
 				break
 			}
 		}
-		if !found {
-			t.Fatalf("ticket %d missing billing tag", r.ID)
-		}
+		assert.True(t, found, "ticket %d missing billing tag", r.ID)
 	}
 }
 
@@ -361,14 +268,12 @@ func TestSearchServicePagination(t *testing.T) {
 	ctx := context.Background()
 
 	page1, err := svc.Search(ctx, "status:open", &types.SearchOptions{Limit: 5})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	require.NoError(t, err)
+	if page1.Count <= 5 {
+		assert.False(t, page1.Meta.HasMore, "HasMore should be false when count <= limit")
 	}
-	if page1.Count <= 5 && page1.Meta.HasMore {
-		t.Fatal("HasMore should be false when count <= limit")
-	}
-	if page1.Count > 5 && !page1.Meta.HasMore {
-		t.Fatal("HasMore should be true when count > limit")
+	if page1.Count > 5 {
+		assert.True(t, page1.Meta.HasMore, "HasMore should be true when count > limit")
 	}
 }
 
@@ -378,15 +283,9 @@ func TestUserServiceAutocomplete(t *testing.T) {
 	ctx := context.Background()
 
 	users, err := svc.AutocompleteUsers(ctx, "sarah")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(users) != 1 {
-		t.Fatalf("expected 1 user, got %d", len(users))
-	}
-	if users[0].Name != "Sarah Chen" {
-		t.Fatalf("expected Sarah Chen, got %s", users[0].Name)
-	}
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+	assert.Equal(t, "Sarah Chen", users[0].Name)
 }
 
 func TestUserServiceAutocompleteEmail(t *testing.T) {
@@ -395,12 +294,8 @@ func TestUserServiceAutocompleteEmail(t *testing.T) {
 	ctx := context.Background()
 
 	users, err := svc.AutocompleteUsers(ctx, "customer.com")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(users) != 6 {
-		t.Fatalf("expected 6 end-users, got %d", len(users))
-	}
+	require.NoError(t, err)
+	assert.Len(t, users, 6, "expected 6 end-users")
 }
 
 func TestUserServiceAutocompleteEmpty(t *testing.T) {
@@ -409,12 +304,8 @@ func TestUserServiceAutocompleteEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	users, err := svc.AutocompleteUsers(ctx, "zzznomatch")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(users) != 0 {
-		t.Fatalf("expected 0 users, got %d", len(users))
-	}
+	require.NoError(t, err)
+	assert.Empty(t, users)
 }
 
 func TestUserServiceGetMe(t *testing.T) {
@@ -423,13 +314,7 @@ func TestUserServiceGetMe(t *testing.T) {
 	ctx := context.Background()
 
 	user, err := svc.GetMe(ctx)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if user.Role != "agent" {
-		t.Fatalf("expected agent role, got %s", user.Role)
-	}
-	if user.Name != "Sarah Chen" {
-		t.Fatalf("expected Sarah Chen, got %s", user.Name)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "agent", user.Role)
+	assert.Equal(t, "Sarah Chen", user.Name)
 }

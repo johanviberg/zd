@@ -4,7 +4,9 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/johanviberg/zd/internal/types"
 )
@@ -34,21 +36,11 @@ func TestRebuildColumns(t *testing.T) {
 
 	m.rebuildColumns(items)
 
-	if len(m.columns[0]) != 1 {
-		t.Errorf("expected 1 new ticket, got %d", len(m.columns[0]))
-	}
-	if len(m.columns[1]) != 2 {
-		t.Errorf("expected 2 open tickets, got %d", len(m.columns[1]))
-	}
-	if len(m.columns[2]) != 1 {
-		t.Errorf("expected 1 pending ticket, got %d", len(m.columns[2]))
-	}
-	if len(m.columns[3]) != 0 {
-		t.Errorf("expected 0 hold tickets, got %d", len(m.columns[3]))
-	}
-	if len(m.columns[4]) != 1 {
-		t.Errorf("expected 1 solved ticket, got %d", len(m.columns[4]))
-	}
+	assert.Len(t, m.columns[0], 1, "expected 1 new ticket")
+	assert.Len(t, m.columns[1], 2, "expected 2 open tickets")
+	assert.Len(t, m.columns[2], 1, "expected 1 pending ticket")
+	assert.Len(t, m.columns[3], 0, "expected 0 hold tickets")
+	assert.Len(t, m.columns[4], 1, "expected 1 solved ticket")
 }
 
 func TestRebuildColumns_Empty(t *testing.T) {
@@ -59,9 +51,7 @@ func TestRebuildColumns_Empty(t *testing.T) {
 	m.rebuildColumns(nil)
 
 	for i := 0; i < 5; i++ {
-		if len(m.columns[i]) != 0 {
-			t.Errorf("column %d: expected 0 tickets, got %d", i, len(m.columns[i]))
-		}
+		assert.Len(t, m.columns[i], 0, "column %d: expected 0 tickets", i)
 	}
 }
 
@@ -82,12 +72,8 @@ func TestRebuildColumns_UnknownStatus(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		total += len(m.columns[i])
 	}
-	if total != 1 {
-		t.Errorf("expected 1 total ticket (only open), got %d", total)
-	}
-	if len(m.columns[1]) != 1 {
-		t.Errorf("expected 1 open ticket, got %d", len(m.columns[1]))
-	}
+	assert.Equal(t, 1, total, "expected 1 total ticket (only open)")
+	assert.Len(t, m.columns[1], 1, "expected 1 open ticket")
 }
 
 func TestNavigation_LeftRight(t *testing.T) {
@@ -103,37 +89,27 @@ func TestNavigation_LeftRight(t *testing.T) {
 
 	m.rebuildColumns(items)
 	// Cursor should start at first visible column with tickets (new = col 0)
-	if m.col != 0 {
-		t.Errorf("expected initial col 0, got %d", m.col)
-	}
+	assert.Equal(t, 0, m.col, "expected initial col 0")
 
 	// Move right — should skip empty columns
 	m, _ = m.moveRight()
 	activeCI := m.visibleCols[m.col]
-	if activeCI != 1 {
-		t.Errorf("after right: expected column index 1 (open), got %d", activeCI)
-	}
+	assert.Equal(t, 1, activeCI, "after right: expected column index 1 (open)")
 
 	// Move right again — should skip pending (empty) and hold (empty)
 	m, _ = m.moveRight()
 	activeCI = m.visibleCols[m.col]
-	if activeCI != 4 {
-		t.Errorf("after second right: expected column index 4 (solved), got %d", activeCI)
-	}
+	assert.Equal(t, 4, activeCI, "after second right: expected column index 4 (solved)")
 
 	// Move right again — should stay (at rightmost non-empty)
 	prevCol := m.col
 	m, _ = m.moveRight()
-	if m.col != prevCol {
-		t.Errorf("expected to stay at col %d, moved to %d", prevCol, m.col)
-	}
+	assert.Equal(t, prevCol, m.col, "expected to stay at col %d", prevCol)
 
 	// Move left — should go back
 	m, _ = m.moveLeft()
 	activeCI = m.visibleCols[m.col]
-	if activeCI != 1 {
-		t.Errorf("after left: expected column index 1, got %d", activeCI)
-	}
+	assert.Equal(t, 1, activeCI, "after left: expected column index 1")
 }
 
 func TestNavigation_UpDown(t *testing.T) {
@@ -151,37 +127,25 @@ func TestNavigation_UpDown(t *testing.T) {
 
 	// Move to open column
 	m, _ = m.moveRight()
-	if m.row != 0 {
-		t.Errorf("expected row 0, got %d", m.row)
-	}
+	assert.Equal(t, 0, m.row, "expected row 0")
 
 	m, _ = m.moveDown()
-	if m.row != 1 {
-		t.Errorf("expected row 1, got %d", m.row)
-	}
+	assert.Equal(t, 1, m.row, "expected row 1")
 
 	m, _ = m.moveDown()
-	if m.row != 2 {
-		t.Errorf("expected row 2, got %d", m.row)
-	}
+	assert.Equal(t, 2, m.row, "expected row 2")
 
 	// At bottom — should not move further
 	m, _ = m.moveDown()
-	if m.row != 2 {
-		t.Errorf("expected row 2 (clamped), got %d", m.row)
-	}
+	assert.Equal(t, 2, m.row, "expected row 2 (clamped)")
 
 	m, _ = m.moveUp()
-	if m.row != 1 {
-		t.Errorf("expected row 1, got %d", m.row)
-	}
+	assert.Equal(t, 1, m.row, "expected row 1")
 
 	// At top — should not go negative
 	m, _ = m.moveUp()
 	m, _ = m.moveUp()
-	if m.row != 0 {
-		t.Errorf("expected row 0, got %d", m.row)
-	}
+	assert.Equal(t, 0, m.row, "expected row 0")
 }
 
 func TestNavigation_EmptyColumn(t *testing.T) {
@@ -203,16 +167,12 @@ func TestNavigation_EmptyColumn(t *testing.T) {
 	m.row = 0
 	m, _ = m.moveRight()
 	activeCI := m.visibleCols[m.col]
-	if activeCI != 1 {
-		t.Errorf("expected to land on open (1), got %d", activeCI)
-	}
+	assert.Equal(t, 1, activeCI, "expected to land on open (1)")
 
 	// Move right should skip pending(2), hold(3) and land on solved(4)
 	m, _ = m.moveRight()
 	activeCI = m.visibleCols[m.col]
-	if activeCI != 4 {
-		t.Errorf("expected to skip to solved (4), got %d", activeCI)
-	}
+	assert.Equal(t, 4, activeCI, "expected to skip to solved (4)")
 }
 
 func TestSelectedTicket(t *testing.T) {
@@ -229,22 +189,14 @@ func TestSelectedTicket(t *testing.T) {
 
 	// First selected ticket should be from first column
 	ticket := m.selectedTicket()
-	if ticket == nil {
-		t.Fatal("expected a selected ticket, got nil")
-	}
-	if ticket.ID != 10 {
-		t.Errorf("expected ticket 10, got %d", ticket.ID)
-	}
+	require.NotNil(t, ticket, "expected a selected ticket, got nil")
+	assert.Equal(t, int64(10), ticket.ID, "expected ticket 10")
 
 	// Move to open column
 	m, _ = m.moveRight()
 	ticket = m.selectedTicket()
-	if ticket == nil {
-		t.Fatal("expected a selected ticket after move, got nil")
-	}
-	if ticket.ID != 20 {
-		t.Errorf("expected ticket 20, got %d", ticket.ID)
-	}
+	require.NotNil(t, ticket, "expected a selected ticket after move, got nil")
+	assert.Equal(t, int64(20), ticket.ID, "expected ticket 20")
 }
 
 func TestSelectedTicket_Empty(t *testing.T) {
@@ -255,9 +207,7 @@ func TestSelectedTicket_Empty(t *testing.T) {
 	m.rebuildColumns(nil)
 
 	ticket := m.selectedTicket()
-	if ticket != nil {
-		t.Errorf("expected nil ticket for empty kanban, got %v", ticket)
-	}
+	assert.Nil(t, ticket, "expected nil ticket for empty kanban")
 }
 
 func TestCursorStability(t *testing.T) {
@@ -278,21 +228,16 @@ func TestCursorStability(t *testing.T) {
 	m, _ = m.moveRight()
 	m, _ = m.moveDown()
 	ticket := m.selectedTicket()
-	if ticket == nil || ticket.ID != 3 {
-		t.Fatalf("expected ticket 3, got %v", ticket)
-	}
+	require.NotNil(t, ticket, "expected ticket 3")
+	require.Equal(t, int64(3), ticket.ID, "expected ticket 3, got %v", ticket)
 
 	// Rebuild with same items + an extra — should preserve selection
 	items = append(items, makeTicket(5, "open", "high", "Open 3"))
 	m.rebuildColumns(items)
 
 	ticket = m.selectedTicket()
-	if ticket == nil {
-		t.Fatal("expected ticket to be preserved after rebuild, got nil")
-	}
-	if ticket.ID != 3 {
-		t.Errorf("expected ticket 3 preserved, got %d", ticket.ID)
-	}
+	require.NotNil(t, ticket, "expected ticket to be preserved after rebuild, got nil")
+	assert.Equal(t, int64(3), ticket.ID, "expected ticket 3 preserved")
 }
 
 func TestKanbanUpdate_Enter(t *testing.T) {
@@ -309,21 +254,15 @@ func TestKanbanUpdate_Enter(t *testing.T) {
 	m, _ = m.moveRight()
 
 	// Press enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	m, cmd := m.Update(msg)
-	if cmd == nil {
-		t.Fatal("expected a command from Enter, got nil")
-	}
+	require.NotNil(t, cmd, "expected a command from Enter, got nil")
 
 	// Execute the command to get the message
 	result := cmd()
 	detail, ok := result.(showDetailMsg)
-	if !ok {
-		t.Fatalf("expected showDetailMsg, got %T", result)
-	}
-	if detail.id != 42 {
-		t.Errorf("expected detail for ticket 42, got %d", detail.id)
-	}
+	require.True(t, ok, "expected showDetailMsg, got %T", result)
+	assert.Equal(t, int64(42), detail.id, "expected detail for ticket 42")
 }
 
 func TestScrollFollowsCursor(t *testing.T) {
@@ -342,24 +281,19 @@ func TestScrollFollowsCursor(t *testing.T) {
 	m, _ = m.moveRight()
 
 	vc := m.visibleCards()
-	if vc < 2 {
-		t.Fatalf("expected at least 2 visible cards, got %d", vc)
-	}
+	require.GreaterOrEqual(t, vc, 2, "expected at least 2 visible cards")
 
 	// Navigate down to row 10
 	for i := 0; i < 10; i++ {
 		m, _ = m.moveDown()
 	}
-	if m.row != 10 {
-		t.Fatalf("expected row 10, got %d", m.row)
-	}
+	require.Equal(t, 10, m.row, "expected row 10")
 
 	// Scroll offset must have moved so the selected card is visible
 	ci := m.visibleCols[m.col]
 	scroll := m.scrolls[ci]
-	if m.row < scroll || m.row >= scroll+vc {
-		t.Errorf("selected row %d not visible: scroll=%d, visibleCards=%d", m.row, scroll, vc)
-	}
+	assert.True(t, m.row >= scroll && m.row < scroll+vc,
+		"selected row %d not visible: scroll=%d, visibleCards=%d", m.row, scroll, vc)
 }
 
 func TestVisibleColumns_NarrowWidth(t *testing.T) {
@@ -377,21 +311,15 @@ func TestVisibleColumns_NarrowWidth(t *testing.T) {
 	// Wide: all 5 columns
 	m.width = 120
 	m.rebuildColumns(items)
-	if len(m.visibleCols) != 5 {
-		t.Errorf("at width 120: expected 5 visible cols, got %d", len(m.visibleCols))
-	}
+	assert.Len(t, m.visibleCols, 5, "at width 120: expected 5 visible cols")
 
 	// Medium: 3 columns (sliding window)
 	m.width = 65
 	m.recomputeVisible()
-	if len(m.visibleCols) != 3 {
-		t.Errorf("at width 65: expected 3 visible cols, got %d", len(m.visibleCols))
-	}
+	assert.Len(t, m.visibleCols, 3, "at width 65: expected 3 visible cols")
 
 	// Narrow: 1 column
 	m.width = 45
 	m.recomputeVisible()
-	if len(m.visibleCols) != 1 {
-		t.Errorf("at width 45: expected 1 visible col, got %d", len(m.visibleCols))
-	}
+	assert.Len(t, m.visibleCols, 1, "at width 45: expected 1 visible col")
 }

@@ -1,6 +1,10 @@
 package types
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestAttachment_IsImage(t *testing.T) {
 	tests := []struct {
@@ -17,9 +21,7 @@ func TestAttachment_IsImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		a := Attachment{ContentType: tt.contentType}
-		if got := a.IsImage(); got != tt.want {
-			t.Errorf("IsImage(%q) = %v, want %v", tt.contentType, got, tt.want)
-		}
+		assert.Equal(t, tt.want, a.IsImage(), "IsImage(%q)", tt.contentType)
 	}
 }
 
@@ -37,8 +39,6 @@ func TestAttachment_HumanSize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		a := Attachment{Size: tt.size}
-		if got := a.HumanSize(); got != tt.want {
-			t.Errorf("HumanSize(%d) = %q, want %q", tt.size, got, tt.want)
-		}
+		assert.Equal(t, tt.want, a.HumanSize(), "HumanSize(%d)", tt.size)
 	}
 }

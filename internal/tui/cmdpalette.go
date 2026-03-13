@@ -3,10 +3,10 @@ package tui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -25,7 +25,7 @@ type cmdItem struct {
 type cmdItems []cmdItem
 
 func (c cmdItems) Len() int            { return len(c) }
-func (c cmdItems) String(i int) string { return c[i].name + " " + c[i].category }
+func (c cmdItems) String(i int) string { return c[i].name + " " + c[i].shortcut + " " + c[i].category }
 
 type cmdPaletteModel struct {
 	active   bool
@@ -40,7 +40,7 @@ type cmdPaletteModel struct {
 
 func newCmdPaletteModel() cmdPaletteModel {
 	ti := textinput.New()
-	ti.Placeholder = "Type a command..."
+	ti.Placeholder = "filter commands..."
 	ti.Prompt = "> "
 	ti.CharLimit = 64
 	return cmdPaletteModel{input: ti}
@@ -49,6 +49,7 @@ func newCmdPaletteModel() cmdPaletteModel {
 func (m *cmdPaletteModel) open(state viewState, focus panelFocus, showDetail bool, hasMore bool, hasItems bool) tea.Cmd {
 	m.active = true
 	m.input.Reset()
+	m.input.SetValue("")
 	m.cursor = 0
 
 	var items []cmdItem
@@ -116,7 +117,7 @@ func (m cmdPaletteModel) Update(msg tea.Msg) (cmdPaletteModel, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, keys.Back):
 			m.close()
@@ -162,6 +163,14 @@ func (m *cmdPaletteModel) refilter() {
 	for i, match := range m.matches {
 		m.filtered[i] = m.all[match.Index]
 	}
+	// Fallback: if fuzzy found nothing, match against shortcuts exactly
+	if len(m.filtered) == 0 {
+		for _, item := range m.all {
+			if strings.EqualFold(item.shortcut, query) {
+				m.filtered = append(m.filtered, item)
+			}
+		}
+	}
 	if m.cursor >= len(m.filtered) {
 		m.cursor = max(0, len(m.filtered)-1)
 	}
@@ -194,15 +203,15 @@ func (m cmdPaletteModel) View() string {
 		return ""
 	}
 
-	// Large modal: ~85% of viewport width, up to 84 cols
-	w := m.width * 17 / 20
-	if w > 84 {
-		w = 84
+	// Large modal: ~90% of viewport width, up to 96 cols
+	w := m.width * 9 / 10
+	if w > 96 {
+		w = 96
 	}
 	if w < 40 {
 		w = 40
 	}
-	innerW := w - 6 // padding (3 each side)
+	innerW := w - 8 // padding (3 each side) + border (1 each side)
 
 	// Title bar: "Commands" left, "esc" right
 	titleText := titleStyle.Render("Commands")
@@ -217,9 +226,9 @@ func (m cmdPaletteModel) View() string {
 	inputView := "\n" + m.input.View()
 
 	// Command list with category headers and spacing
-	maxVisible := m.height*5/6 - 8
-	if maxVisible < 6 {
-		maxVisible = 6
+	maxVisible := m.height*9/10 - 6
+	if maxVisible < 10 {
+		maxVisible = 10
 	}
 
 	var lines []string

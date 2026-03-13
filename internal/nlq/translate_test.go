@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // fixedNow is 2026-03-07 (Saturday), used for all deterministic date tests.
@@ -517,15 +519,11 @@ func TestTranslateWithTime(t *testing.T) {
 
 			// Special case for the "about" test: check containment, not equality.
 			if tc.name == "about phrase produces bare text" {
-				if !strings.Contains(got, "billing issue") {
-					t.Errorf("translateWithTime(%q) = %q, want it to contain %q", tc.input, got, "billing issue")
-				}
+				assert.Contains(t, got, "billing issue", "translateWithTime(%q) = %q, want it to contain %q", tc.input, got, "billing issue")
 				return
 			}
 
-			if got != tc.expected {
-				t.Errorf("translateWithTime(%q)\n  got:  %q\n  want: %q", tc.input, got, tc.expected)
-			}
+			assert.Equal(t, tc.expected, got, "translateWithTime(%q)", tc.input)
 		})
 	}
 }
@@ -551,9 +549,7 @@ func TestTranslate_PassthroughSyntaxDetection(t *testing.T) {
 	for _, q := range passthroughs {
 		t.Run(q, func(t *testing.T) {
 			got := translateWithTime(q, fixedNow)
-			if got != q {
-				t.Errorf("translateWithTime(%q) = %q, want unchanged", q, got)
-			}
+			assert.Equal(t, q, got, "translateWithTime(%q) should be unchanged", q)
 		})
 	}
 }
@@ -573,9 +569,7 @@ func TestTranslatePublicFunction(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			got := Translate(tc.input)
-			if got != tc.expected {
-				t.Errorf("Translate(%q) = %q, want %q", tc.input, got, tc.expected)
-			}
+			assert.Equal(t, tc.expected, got, "Translate(%q)", tc.input)
 		})
 	}
 }
@@ -675,9 +669,7 @@ func TestTranslateWithTime_DateEdgeCases(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got := translateWithTime(tc.input, tc.now)
-			if got != tc.expected {
-				t.Errorf("translateWithTime(%q, %v)\n  got:  %q\n  want: %q", tc.input, tc.now, got, tc.expected)
-			}
+			assert.Equal(t, tc.expected, got, "translateWithTime(%q, %v)", tc.input, tc.now)
 		})
 	}
 }
@@ -685,11 +677,7 @@ func TestTranslateWithTime_DateEdgeCases(t *testing.T) {
 // TestFormatExamples verifies the function returns a non-empty help string.
 func TestFormatExamples(t *testing.T) {
 	out := FormatExamples()
-	if out == "" {
-		t.Error("FormatExamples() returned empty string")
-	}
+	assert.NotEmpty(t, out, "FormatExamples() returned empty string")
 	// It should mention at least one Zendesk field.
-	if !strings.Contains(out, "status:open") {
-		t.Errorf("FormatExamples() output does not contain expected example %q", "status:open")
-	}
+	assert.True(t, strings.Contains(out, "status:open"), "FormatExamples() output does not contain expected example %q", "status:open")
 }

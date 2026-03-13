@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sahilm/fuzzy"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCmdPaletteRefilter(t *testing.T) {
@@ -67,14 +68,11 @@ func TestCmdPaletteRefilter(t *testing.T) {
 			}
 
 			if tc.wantEmpty {
-				if len(filtered) != 0 {
-					t.Errorf("expected 0 results for query %q, got %d", tc.query, len(filtered))
-				}
+				assert.Empty(t, filtered, "expected 0 results for query %q", tc.query)
 				return
 			}
-			if len(filtered) < tc.wantMinLen {
-				t.Errorf("expected at least %d result(s) for query %q, got %d", tc.wantMinLen, tc.query, len(filtered))
-			}
+			assert.GreaterOrEqual(t, len(filtered), tc.wantMinLen,
+				"expected at least %d result(s) for query %q", tc.wantMinLen, tc.query)
 			if tc.wantContains != "" {
 				found := false
 				for _, item := range filtered {
@@ -83,9 +81,7 @@ func TestCmdPaletteRefilter(t *testing.T) {
 						break
 					}
 				}
-				if !found {
-					t.Errorf("expected action %q in results for query %q", tc.wantContains, tc.query)
-				}
+				assert.True(t, found, "expected action %q in results for query %q", tc.wantContains, tc.query)
 			}
 		})
 	}
@@ -120,11 +116,8 @@ func TestHighlightMatches(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := highlightMatches(tc.text, tc.matchedIndexes)
-			if tc.wantPlain != "" && result != tc.wantPlain {
-				// Only check exact match for no-highlight case
-				if len(tc.matchedIndexes) == 0 && result != tc.wantPlain {
-					t.Errorf("result = %q, want %q", result, tc.wantPlain)
-				}
+			if tc.wantPlain != "" && len(tc.matchedIndexes) == 0 {
+				assert.Equal(t, tc.wantPlain, result)
 			}
 		})
 	}

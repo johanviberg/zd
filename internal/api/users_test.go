@@ -4,16 +4,15 @@ import (
 	"context"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetMe(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v2/users/me" {
-			t.Errorf("expected path /api/v2/users/me, got %s", r.URL.Path)
-		}
-		if r.Method != "GET" {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
+		assert.Equal(t, "/api/v2/users/me", r.URL.Path)
+		assert.Equal(t, "GET", r.Method)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"user":{"id":123,"name":"Test User","email":"test@example.com","role":"admin","active":true}}`))
 	})
@@ -22,28 +21,16 @@ func TestGetMe(t *testing.T) {
 	svc := NewUserService(client)
 
 	user, err := svc.GetMe(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if user.ID != 123 {
-		t.Errorf("expected ID 123, got %d", user.ID)
-	}
-	if user.Name != "Test User" {
-		t.Errorf("expected name 'Test User', got %q", user.Name)
-	}
-	if user.Email != "test@example.com" {
-		t.Errorf("expected email 'test@example.com', got %q", user.Email)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(123), user.ID)
+	assert.Equal(t, "Test User", user.Name)
+	assert.Equal(t, "test@example.com", user.Email)
 }
 
 func TestAutocompleteUsers(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v2/users/autocomplete" {
-			t.Errorf("expected path /api/v2/users/autocomplete, got %s", r.URL.Path)
-		}
-		if r.URL.Query().Get("name") != "sarah" {
-			t.Errorf("expected name=sarah, got %s", r.URL.Query().Get("name"))
-		}
+		assert.Equal(t, "/api/v2/users/autocomplete", r.URL.Path)
+		assert.Equal(t, "sarah", r.URL.Query().Get("name"))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"users":[{"id":101,"name":"Sarah Chen","email":"sarah@example.com","role":"agent","active":true}]}`))
 	})
@@ -52,15 +39,9 @@ func TestAutocompleteUsers(t *testing.T) {
 	svc := NewUserService(client)
 
 	users, err := svc.AutocompleteUsers(context.Background(), "sarah")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(users) != 1 {
-		t.Fatalf("expected 1 user, got %d", len(users))
-	}
-	if users[0].Name != "Sarah Chen" {
-		t.Errorf("expected name 'Sarah Chen', got %q", users[0].Name)
-	}
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+	assert.Equal(t, "Sarah Chen", users[0].Name)
 }
 
 func TestAutocompleteUsers_Empty(t *testing.T) {
@@ -73,12 +54,8 @@ func TestAutocompleteUsers_Empty(t *testing.T) {
 	svc := NewUserService(client)
 
 	users, err := svc.AutocompleteUsers(context.Background(), "nobody")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(users) != 0 {
-		t.Fatalf("expected 0 users, got %d", len(users))
-	}
+	require.NoError(t, err)
+	assert.Empty(t, users)
 }
 
 func TestGetMe_Error(t *testing.T) {
@@ -91,7 +68,5 @@ func TestGetMe_Error(t *testing.T) {
 	svc := NewUserService(client)
 
 	_, err := svc.GetMe(context.Background())
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+	require.Error(t, err)
 }

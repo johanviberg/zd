@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/johanviberg/zd/internal/browser"
 	"github.com/johanviberg/zd/internal/types"
@@ -86,7 +86,7 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 }
 
 func (m App) Init() tea.Cmd {
-	return tea.Batch(m.list.Init(), m.fetchCurrentUser(), tea.SetWindowTitle("zd — Loading..."))
+	return tea.Batch(m.list.Init(), m.fetchCurrentUser())
 }
 
 func (m App) fetchCurrentUser() tea.Cmd {
@@ -181,7 +181,7 @@ func (m App) windowTitle() string {
 }
 
 func (m App) updateWindowTitle() tea.Cmd {
-	return tea.SetWindowTitle(m.windowTitle())
+	return nil
 }
 
 func ringBell() tea.Cmd {
@@ -241,7 +241,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// Global quit — but not when in input mode
 		if m.actions.mode == actionNone && !m.searchM.active && !m.gotoM.active && !m.cmdPalette.active {
 			if key.Matches(msg, keys.Quit) {
@@ -314,7 +314,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Route to active action overlay first
 	if m.actions.mode != actionNone {
 		switch msg.(type) {
-		case tea.KeyMsg, spinner.TickMsg, ticketUpdatedMsg, actionErrMsg, ccAutocompleteMsg, ccAutocompleteErrMsg:
+		case tea.KeyPressMsg, spinner.TickMsg, ticketUpdatedMsg, actionErrMsg, ccAutocompleteMsg, ccAutocompleteErrMsg:
 			var cmd tea.Cmd
 			m.actions, cmd = m.actions.Update(msg)
 			if _, ok := msg.(ticketUpdatedMsg); ok {
@@ -327,7 +327,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Route to command palette overlay
 	if m.cmdPalette.active {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			var cmd tea.Cmd
 			m.cmdPalette, cmd = m.cmdPalette.Update(msg)
 			return m, cmd
@@ -336,7 +336,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Route to search overlay
 	if m.searchM.active {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			var cmd tea.Cmd
 			m.searchM, cmd = m.searchM.Update(msg)
 			return m, cmd
@@ -345,7 +345,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Route to goto overlay
 	if m.gotoM.active {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			var cmd tea.Cmd
 			m.gotoM, cmd = m.gotoM.Update(msg)
 			return m, cmd
@@ -508,8 +508,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = detailView
 				m.detail.width = m.width
 				m.detail.height = m.height
-				m.detail.viewport.Width = m.width - 4
-				m.detail.viewport.Height = m.height - 6
+				m.detail.viewport.SetWidth(m.width - 4)
+				m.detail.viewport.SetHeight(m.height - 6)
 				m.detail.viewport.SetContent(m.detail.renderContent())
 				return m, m.updateWindowTitle()
 			}
@@ -518,7 +518,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.detail = newDetailModel(m.tickets)
 		m.detail.width = m.width
 		m.detail.height = m.height
-		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), m.detail.loadAudits(msg.id), tea.SetWindowTitle("zd — Loading..."))
+		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), m.detail.loadAudits(msg.id))
 
 	case goBackMsg:
 		if m.prevState == kanbanView {
@@ -532,8 +532,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detail.width = m.detailPanelWidth()
 			m.detail.height = m.height
 			if m.detail.ready {
-				m.detail.viewport.Width = m.detail.width - 4
-				m.detail.viewport.Height = m.detail.height - 6
+				m.detail.viewport.SetWidth(m.detail.width - 4)
+				m.detail.viewport.SetHeight(m.detail.height - 6)
 				m.detail.viewport.SetContent(m.detail.renderContent())
 			}
 			// Resize list to panel width
@@ -548,7 +548,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case searchDoneMsg:
 		m.list.searchQuery = msg.query
 		m.list.loading = true
-		return m, tea.Batch(m.list.spinner.Tick, m.list.doSearch(msg.query), tea.SetWindowTitle(fmt.Sprintf("zd — Searching: %q", msg.query)))
+		return m, tea.Batch(m.list.spinner.Tick, m.list.doSearch(msg.query))
 
 	case searchCancelMsg:
 		if m.list.searchQuery != "" {
@@ -571,7 +571,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Route to active view
 	switch m.state {
 	case splitView:
-		if msg, ok := msg.(tea.KeyMsg); ok {
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
 			// Toggle chart
 			if key.Matches(msg, keys.ToggleChart) {
 				m.list.showChart = !m.list.showChart
@@ -678,7 +678,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case listView:
 		// Check for action keys before routing to list
-		if msg, ok := msg.(tea.KeyMsg); ok {
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
 			// Toggle chart
 			if key.Matches(msg, keys.ToggleChart) {
 				m.list.showChart = !m.list.showChart
@@ -748,7 +748,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case detailView:
 		// Check for action keys before routing to detail
-		if msg, ok := msg.(tea.KeyMsg); ok {
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
 			if key.Matches(msg, keys.GoTo) {
 				var cmd tea.Cmd
 				m.gotoM, cmd = m.gotoM.open()
@@ -777,7 +777,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case kanbanView:
-		if msg, ok := msg.(tea.KeyMsg); ok {
+		if msg, ok := msg.(tea.KeyPressMsg); ok {
 			// Action keys using selected ticket
 			if t := m.kanban.selectedTicket(); t != nil {
 				switch {
@@ -1056,17 +1056,25 @@ func (m *App) handlePaletteAction(action string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m App) View() string {
+func (m App) View() tea.View {
 	// Overlay: action modal
 	if m.actions.mode != actionNone {
 		overlay := m.actions.View()
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, overlay)
+		content := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, overlay)
+		v := tea.NewView(content)
+		v.AltScreen = true
+		v.WindowTitle = m.windowTitle()
+		return v
 	}
 
 	// Overlay: command palette
 	if m.cmdPalette.active {
 		overlay := m.cmdPalette.View()
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, overlay)
+		content := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, overlay)
+		v := tea.NewView(content)
+		v.AltScreen = true
+		v.WindowTitle = m.windowTitle()
+		return v
 	}
 
 	var content string
@@ -1119,7 +1127,10 @@ func (m App) View() string {
 		Padding(2, 2).
 		Render(content)
 
-	return styledContent + "\n" + help
+	v := tea.NewView(styledContent + "\n" + help)
+	v.AltScreen = true
+	v.WindowTitle = m.windowTitle()
+	return v
 }
 
 func (m App) renderSplitView() string {

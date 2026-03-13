@@ -4,47 +4,38 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/johanviberg/zd/internal/types"
 )
 
 func TestCCPickerAddEntry(t *testing.T) {
 	m := newCCPickerModel(nil)
 	m = m.addEntry(types.CollaboratorEntry{Email: "alice@example.com"})
-	if len(m.selected) != 1 {
-		t.Fatalf("expected 1 selected, got %d", len(m.selected))
-	}
-	if m.selected[0].Email != "alice@example.com" {
-		t.Errorf("expected alice@example.com, got %s", m.selected[0].Email)
-	}
+	require.Len(t, m.selected, 1, "expected 1 selected")
+	assert.Equal(t, "alice@example.com", m.selected[0].Email)
 }
 
 func TestCCPickerAddUserByID(t *testing.T) {
 	m := newCCPickerModel(nil)
 	m = m.addEntry(types.CollaboratorEntry{UserID: 123, Name: "Alice", Email: "alice@example.com"})
-	if len(m.selected) != 1 {
-		t.Fatalf("expected 1 selected, got %d", len(m.selected))
-	}
-	if m.selected[0].UserID != 123 {
-		t.Errorf("expected user ID 123, got %d", m.selected[0].UserID)
-	}
+	require.Len(t, m.selected, 1, "expected 1 selected")
+	assert.Equal(t, int64(123), m.selected[0].UserID, "expected user ID 123")
 }
 
 func TestCCPickerDuplicateEmail(t *testing.T) {
 	m := newCCPickerModel(nil)
 	m = m.addEntry(types.CollaboratorEntry{Email: "alice@example.com"})
 	m = m.addEntry(types.CollaboratorEntry{Email: "alice@example.com"})
-	if len(m.selected) != 1 {
-		t.Fatalf("expected 1 after duplicate, got %d", len(m.selected))
-	}
+	require.Len(t, m.selected, 1, "expected 1 after duplicate")
 }
 
 func TestCCPickerDuplicateUserID(t *testing.T) {
 	m := newCCPickerModel(nil)
 	m = m.addEntry(types.CollaboratorEntry{UserID: 123, Email: "a@example.com"})
 	m = m.addEntry(types.CollaboratorEntry{UserID: 123, Email: "b@example.com"})
-	if len(m.selected) != 1 {
-		t.Fatalf("expected 1 after duplicate user ID, got %d", len(m.selected))
-	}
+	require.Len(t, m.selected, 1, "expected 1 after duplicate user ID")
 }
 
 func TestCCPickerMaxLimit(t *testing.T) {
@@ -52,9 +43,7 @@ func TestCCPickerMaxLimit(t *testing.T) {
 	for i := 0; i < maxCCs+5; i++ {
 		m = m.addEntry(types.CollaboratorEntry{Email: fmt.Sprintf("user%d@example.com", i)})
 	}
-	if len(m.selected) != maxCCs {
-		t.Fatalf("expected %d max, got %d", maxCCs, len(m.selected))
-	}
+	require.Len(t, m.selected, maxCCs, "expected %d max", maxCCs)
 }
 
 func TestCCPickerRemoveLast(t *testing.T) {
@@ -62,20 +51,14 @@ func TestCCPickerRemoveLast(t *testing.T) {
 	m = m.addEntry(types.CollaboratorEntry{Email: "a@example.com"})
 	m = m.addEntry(types.CollaboratorEntry{Email: "b@example.com"})
 	m = m.removeLastEntry()
-	if len(m.selected) != 1 {
-		t.Fatalf("expected 1 after remove, got %d", len(m.selected))
-	}
-	if m.selected[0].Email != "a@example.com" {
-		t.Errorf("expected a@example.com remaining, got %s", m.selected[0].Email)
-	}
+	require.Len(t, m.selected, 1, "expected 1 after remove")
+	assert.Equal(t, "a@example.com", m.selected[0].Email, "expected a@example.com remaining")
 }
 
 func TestCCPickerRemoveFromEmpty(t *testing.T) {
 	m := newCCPickerModel(nil)
 	m = m.removeLastEntry() // should not panic
-	if len(m.selected) != 0 {
-		t.Fatalf("expected 0, got %d", len(m.selected))
-	}
+	require.Len(t, m.selected, 0, "expected 0")
 }
 
 func TestCCPickerReset(t *testing.T) {
@@ -83,12 +66,8 @@ func TestCCPickerReset(t *testing.T) {
 	m = m.addEntry(types.CollaboratorEntry{Email: "a@example.com"})
 	m.active = true
 	m = m.reset()
-	if len(m.selected) != 0 {
-		t.Fatalf("expected 0 after reset, got %d", len(m.selected))
-	}
-	if m.active {
-		t.Fatal("expected inactive after reset")
-	}
+	require.Len(t, m.selected, 0, "expected 0 after reset")
+	assert.False(t, m.active, "expected inactive after reset")
 }
 
 func TestLooksLikeEmail(t *testing.T) {
@@ -104,8 +83,6 @@ func TestLooksLikeEmail(t *testing.T) {
 		{"has@but-no-dot", false},
 	}
 	for _, tt := range tests {
-		if got := looksLikeEmail(tt.input); got != tt.want {
-			t.Errorf("looksLikeEmail(%q) = %v, want %v", tt.input, got, tt.want)
-		}
+		assert.Equal(t, tt.want, looksLikeEmail(tt.input), "looksLikeEmail(%q)", tt.input)
 	}
 }
