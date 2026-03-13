@@ -7,6 +7,9 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
 type TextFormatter struct {
@@ -107,6 +110,11 @@ func formatValue(v interface{}) string {
 		return ""
 	}
 	switch val := v.(type) {
+	case string:
+		if t, err := time.Parse(time.RFC3339, val); err == nil {
+			return humanize.Time(t)
+		}
+		return val
 	case []interface{}:
 		strs := make([]string, len(val))
 		for i, s := range val {

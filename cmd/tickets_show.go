@@ -14,6 +14,7 @@ func init() {
 	ticketsCmd.AddCommand(ticketsShowCmd)
 
 	ticketsShowCmd.Flags().String("include", "", "Sideload: users, groups, organizations")
+	ticketsShowCmd.Flags().Bool("open", false, "Open ticket in browser after displaying")
 }
 
 var ticketsShowCmd = &cobra.Command{
@@ -47,6 +48,10 @@ var ticketsShowCmd = &cobra.Command{
 			data = enrichTicket(result.Ticket, userMap)
 		}
 
-		return formatter.Format(os.Stdout, data)
+		err = formatter.Format(os.Stdout, data)
+		if openFlag, _ := cmd.Flags().GetBool("open"); openFlag {
+			openTicketInBrowser(cmd, id)
+		}
+		return err
 	},
 }

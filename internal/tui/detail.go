@@ -108,7 +108,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		m.viewport = viewport.New(m.width-4, m.height-6)
 		m.viewport.SetContent(m.renderContent())
 		m.ready = true
-		return m, m.loadAudits(msg.ticket.ID)
+		return m, nil
 
 	case auditsLoadedMsg:
 		m.audits = msg.audits
@@ -236,7 +236,7 @@ func (m detailModel) renderContent() string {
 
 	// Description section
 	if t.Description != "" {
-		wrappedDesc := strings.Join(wrapText(t.Description, contentWidth-4), "\n")
+		wrappedDesc := renderMarkdown("", t.Description, contentWidth-4)
 		descBox := borderStyle.Width(contentWidth).Render(
 			headerStyle.Render(" Description") + "\n" +
 				wrappedDesc,

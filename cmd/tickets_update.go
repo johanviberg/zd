@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	zdeditor "github.com/johanviberg/zd/internal/editor"
 	"github.com/johanviberg/zd/internal/types"
 )
 
@@ -38,6 +39,8 @@ func init() {
 	ticketsUpdateCmd.Flags().StringArray("custom-field", nil, "Custom field (key=value, repeatable)")
 	ticketsUpdateCmd.Flags().Bool("safe-update", false, "Use safe update (conflict detection)")
 	ticketsUpdateCmd.Flags().StringSlice("cc", nil, "Add CCs (emails or user IDs, comma-separated)")
+	ticketsUpdateCmd.Flags().Bool("open", false, "Open ticket in browser after update")
+	ticketsUpdateCmd.Flags().Bool("editor", false, "Compose comment in $EDITOR")
 }
 
 var ticketsUpdateCmd = &cobra.Command{
@@ -113,12 +116,31 @@ var ticketsUpdateCmd = &cobra.Command{
 			req.CustomFields = fields
 		}
 
+		editorFlag, _ := cmd.Flags().GetBool("editor")
+		if editorFlag && !cmd.Flags().Changed("comment") {
+			body, err := zdeditor.EditComment()
+			if err != nil {
+				return err
+			}
+			if body != "" {
+				public, _ := cmd.Flags().GetBool("public")
+				req.Comment = &types.Comment{
+					Body:   body,
+					Public: &public,
+				}
+			}
+		}
+
 		ticket, err := svc.Update(cmd.Context(), id, req)
 		if err != nil {
 			return err
 		}
 
 		formatter := formatterFromCtx(cmd.Context())
-		return formatter.Format(os.Stdout, ticket)
+		err = formatter.Format(os.Stdout, ticket)
+		if openFlag, _ := cmd.Flags().GetBool("open"); openFlag {
+			openTicketInBrowser(cmd, id)
+		}
+		return err
 	},
 }

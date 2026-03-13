@@ -113,9 +113,9 @@ func renderTimeline(nodes []TimelineNode, users map[int64]types.User, width int)
 				b.WriteString(connector(" │  ") + internalNoteStyle.Render("(internal)") + "\n")
 			}
 
-			// Word-wrap body
-			lines := wrapText(c.Body, bodyWidth)
-			for _, line := range lines {
+			// Render body with markdown if HTML available
+			rendered := renderMarkdown(c.HTMLBody, c.Body, bodyWidth)
+			for _, line := range strings.Split(rendered, "\n") {
 				b.WriteString(connector(" │  ") + line + "\n")
 			}
 

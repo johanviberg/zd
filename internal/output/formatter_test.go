@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestJSONFormatter_Format(t *testing.T) {
@@ -171,6 +172,47 @@ func TestFieldProjection(t *testing.T) {
 	}
 	if m["id"] != float64(1) { // JSON round-trip converts to float64
 		t.Errorf("expected id 1, got %v", m["id"])
+	}
+}
+
+func TestTextFormatter_HumanTimestamps(t *testing.T) {
+	f := &TextFormatter{}
+	var buf bytes.Buffer
+
+	ts := time.Now().Add(-3 * time.Hour).UTC().Format(time.RFC3339)
+	data := map[string]interface{}{
+		"id":         1,
+		"updated_at": ts,
+	}
+
+	if err := f.Format(&buf, data); err != nil {
+		t.Fatalf("Format: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "ago") {
+		t.Errorf("expected humanized time containing 'ago', got: %s", output)
+	}
+}
+
+func TestJSONFormatter_PreservesTimestamp(t *testing.T) {
+	f := &JSONFormatter{}
+	var buf bytes.Buffer
+
+	ts := time.Now().Add(-3 * time.Hour).UTC().Format(time.RFC3339)
+	data := map[string]interface{}{
+		"id":         1,
+		"updated_at": ts,
+	}
+
+	if err := f.Format(&buf, data); err != nil {
+		t.Fatalf("Format: %v", err)
+	}
+
+	var result map[string]interface{}
+	json.Unmarshal(buf.Bytes(), &result)
+	if result["updated_at"] != ts {
+		t.Errorf("expected timestamp %q preserved, got %v", ts, result["updated_at"])
 	}
 }
 

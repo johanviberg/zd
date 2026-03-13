@@ -126,7 +126,7 @@ func (m App) autoLoadFirstTicket() tea.Cmd {
 	w := m.detailPanelWidth()
 	m.detail.width = w
 	m.detail.height = m.height
-	return tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(id))
+	return tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
 }
 
 func (m *App) loadDetailForCursor() tea.Cmd {
@@ -143,7 +143,7 @@ func (m *App) loadDetailForCursor() tea.Cmd {
 	w := m.detailPanelWidth()
 	m.detail.width = w
 	m.detail.height = m.height
-	return tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(id))
+	return tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
 }
 
 func (m App) windowTitle() string {
@@ -416,7 +416,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detail.expectedID = id
 				m.detail.width = m.detailPanelWidth()
 				m.detail.height = m.height
-				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id))
+				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
 			} else {
 				// Clear detail panel when no tickets
 				m.detail = newDetailModel(m.tickets)
@@ -442,7 +442,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detail.expectedID = id
 				m.detail.width = m.detailPanelWidth()
 				m.detail.height = m.height
-				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id))
+				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
 			} else {
 				// Clear detail panel when no results
 				m.detail = newDetailModel(m.tickets)
@@ -495,7 +495,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detail.expectedID = msg.id
 			m.detail.width = m.detailPanelWidth()
 			m.detail.height = m.height
-			return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id))
+			return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), m.detail.loadAudits(msg.id))
 		}
 		return m, nil
 
@@ -518,7 +518,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.detail = newDetailModel(m.tickets)
 		m.detail.width = m.width
 		m.detail.height = m.height
-		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), tea.SetWindowTitle("zd — Loading..."))
+		return m, tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(msg.id), m.detail.loadAudits(msg.id), tea.SetWindowTitle("zd — Loading..."))
 
 	case goBackMsg:
 		if m.prevState == kanbanView {

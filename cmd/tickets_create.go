@@ -8,15 +8,19 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
+	zdeditor "github.com/johanviberg/zd/internal/editor"
 	"github.com/johanviberg/zd/internal/types"
 )
 
 func init() {
 	ticketsCmd.AddCommand(ticketsCreateCmd)
 
-	ticketsCreateCmd.Flags().String("subject", "", "Ticket subject (required)")
-	ticketsCreateCmd.Flags().String("comment", "", "Ticket comment body (required)")
+	ticketsCreateCmd.Flags().String("subject", "", "Ticket subject")
+	ticketsCreateCmd.Flags().String("comment", "", "Ticket comment body")
+	ticketsCreateCmd.Flags().Bool("editor", false, "Compose ticket in $EDITOR")
+	ticketsCreateCmd.Flags().Bool("open", false, "Open ticket in browser after creation")
 	ticketsCreateCmd.Flags().String("priority", "", "Priority: urgent, high, normal, low")
 	ticketsCreateCmd.Flags().String("type", "", "Type: problem, incident, question, task")
 	ticketsCreateCmd.Flags().String("status", "", "Status: new, open, pending, hold, solved, closed")
@@ -28,9 +32,6 @@ func init() {
 	ticketsCreateCmd.Flags().String("requester-name", "", "Requester name")
 	ticketsCreateCmd.Flags().String("idempotency-key", "", "Idempotency key for deduplication")
 	ticketsCreateCmd.Flags().String("if-exists", "error", "When idempotent ticket exists: skip, update, error")
-
-	ticketsCreateCmd.MarkFlagRequired("subject")
-	ticketsCreateCmd.MarkFlagRequired("comment")
 }
 
 var ticketsCreateCmd = &cobra.Command{
@@ -39,6 +40,31 @@ var ticketsCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		subject, _ := cmd.Flags().GetString("subject")
 		comment, _ := cmd.Flags().GetString("comment")
+		editorFlag, _ := cmd.Flags().GetBool("editor")
+
+		if editorFlag || (subject == "" && comment == "" && term.IsTerminal(int(os.Stdin.Fd()))) {
+			edSubject, edBody, err := zdeditor.EditTicket()
+			if err != nil {
+				return err
+			}
+			if edSubject == "" {
+				return fmt.Errorf("cancelled: no subject provided")
+			}
+			if subject == "" {
+				subject = edSubject
+			}
+			if comment == "" {
+				comment = edBody
+			}
+		}
+
+		if subject == "" {
+			return fmt.Errorf("subject is required (use --subject or --editor)")
+		}
+		if comment == "" {
+			return fmt.Errorf("comment is required (use --comment or --editor)")
+		}
+
 		priority, _ := cmd.Flags().GetString("priority")
 		ticketType, _ := cmd.Flags().GetString("type")
 		status, _ := cmd.Flags().GetString("status")
@@ -120,7 +146,11 @@ var ticketsCreateCmd = &cobra.Command{
 		}
 
 		formatter := formatterFromCtx(cmd.Context())
-		return formatter.Format(os.Stdout, ticket)
+		err = formatter.Format(os.Stdout, ticket)
+		if openFlag, _ := cmd.Flags().GetBool("open"); openFlag {
+			openTicketInBrowser(cmd, ticket.ID)
+		}
+		return err
 	},
 }
 

@@ -2,12 +2,12 @@ package tui
 
 import (
 	"strings"
-	"unicode"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/sahilm/fuzzy"
 )
 
 type cmdPaletteActionMsg struct {
@@ -21,11 +21,18 @@ type cmdItem struct {
 	action   string
 }
 
+// cmdItems implements fuzzy.Source for fuzzy matching.
+type cmdItems []cmdItem
+
+func (c cmdItems) Len() int            { return len(c) }
+func (c cmdItems) String(i int) string { return c[i].name + " " + c[i].category }
+
 type cmdPaletteModel struct {
 	active   bool
 	input    textinput.Model
 	all      []cmdItem
 	filtered []cmdItem
+	matches  fuzzy.Matches
 	cursor   int
 	width    int
 	height   int
@@ -89,6 +96,7 @@ func (m *cmdPaletteModel) open(state viewState, focus panelFocus, showDetail boo
 
 	m.all = items
 	m.filtered = items
+	m.matches = nil
 
 	return m.input.Focus()
 }
@@ -142,78 +150,43 @@ func (m cmdPaletteModel) Update(msg tea.Msg) (cmdPaletteModel, tea.Cmd) {
 }
 
 func (m *cmdPaletteModel) refilter() {
-	query := strings.ToLower(m.input.Value())
+	query := m.input.Value()
 	if query == "" {
 		m.filtered = m.all
+		m.matches = nil
 		m.cursor = 0
 		return
 	}
-
-	type scored struct {
-		item  cmdItem
-		score int
-	}
-	var results []scored
-	for _, item := range m.all {
-		target := strings.ToLower(item.name + " " + item.category)
-		s := fuzzyScore(target, query)
-		if s > 0 {
-			results = append(results, scored{item, s})
-		}
-	}
-
-	// Sort by score descending (simple insertion sort for ~15 items)
-	for i := 1; i < len(results); i++ {
-		for j := i; j > 0 && results[j].score > results[j-1].score; j-- {
-			results[j], results[j-1] = results[j-1], results[j]
-		}
-	}
-
-	m.filtered = make([]cmdItem, len(results))
-	for i, r := range results {
-		m.filtered[i] = r.item
+	m.matches = fuzzy.FindFrom(query, cmdItems(m.all))
+	m.filtered = make([]cmdItem, len(m.matches))
+	for i, match := range m.matches {
+		m.filtered[i] = m.all[match.Index]
 	}
 	if m.cursor >= len(m.filtered) {
 		m.cursor = max(0, len(m.filtered)-1)
 	}
 }
 
-// fuzzyScore returns a positive score if query is a subsequence of target, 0 otherwise.
-// Higher scores for consecutive matches and matches at word boundaries.
-func fuzzyScore(target, query string) int {
-	tRunes := []rune(target)
-	qRunes := []rune(query)
-	if len(qRunes) == 0 {
-		return 1
+// highlightMatches returns text with matched character positions rendered in accentStyle.
+func highlightMatches(text string, matchedIndexes []int) string {
+	if len(matchedIndexes) == 0 {
+		return text
 	}
-	if len(qRunes) > len(tRunes) {
-		return 0
-	}
-
-	score := 0
-	qi := 0
-	prevMatch := false
-	for ti := 0; ti < len(tRunes) && qi < len(qRunes); ti++ {
-		if unicode.ToLower(tRunes[ti]) == unicode.ToLower(qRunes[qi]) {
-			score++
-			// Bonus for consecutive matches
-			if prevMatch {
-				score += 2
-			}
-			// Bonus for word boundary match
-			if ti == 0 || tRunes[ti-1] == ' ' {
-				score += 3
-			}
-			qi++
-			prevMatch = true
-		} else {
-			prevMatch = false
+	matched := make(map[int]bool, len(matchedIndexes))
+	for _, idx := range matchedIndexes {
+		if idx < len(text) {
+			matched[idx] = true
 		}
 	}
-	if qi < len(qRunes) {
-		return 0 // not all query chars matched
+	var b strings.Builder
+	for i, ch := range text {
+		if matched[i] {
+			b.WriteString(accentStyle.Render(string(ch)))
+		} else {
+			b.WriteRune(ch)
+		}
 	}
-	return score
+	return b.String()
 }
 
 func (m cmdPaletteModel) View() string {
@@ -261,16 +234,30 @@ func (m cmdPaletteModel) View() string {
 			lines = append(lines, cmdPaletteCategoryStyle.Render(item.category))
 		}
 
-		nameText := item.name
+		// Build name with match highlighting when a query is active.
+		var nameText string
+		if m.matches != nil && i < len(m.matches) {
+			var matchedIndexes []int
+			for _, idx := range m.matches[i].MatchedIndexes {
+				if idx < len(item.name) {
+					matchedIndexes = append(matchedIndexes, idx)
+				}
+			}
+			nameText = highlightMatches(item.name, matchedIndexes)
+		} else {
+			nameText = item.name
+		}
+
 		shortcutText := item.shortcut
-		gap := innerW - lipgloss.Width(nameText) - lipgloss.Width(shortcutText)
+		// Use plain name width for gap calculation (nameText may contain ANSI codes)
+		gap := innerW - lipgloss.Width(item.name) - lipgloss.Width(shortcutText)
 		if gap < 1 {
 			gap = 1
 		}
 
 		if i == m.cursor {
 			row := cmdPaletteSelectedStyle.Width(innerW).Render(
-				nameText + strings.Repeat(" ", gap) + shortcutText,
+				item.name + strings.Repeat(" ", gap) + shortcutText,
 			)
 			lines = append(lines, row)
 		} else {

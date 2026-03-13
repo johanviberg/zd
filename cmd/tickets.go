@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/johanviberg/zd/internal/api"
 	"github.com/johanviberg/zd/internal/auth"
+	"github.com/johanviberg/zd/internal/browser"
 	"github.com/johanviberg/zd/internal/demo"
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
@@ -113,6 +116,28 @@ func newUserService(cmd *cobra.Command) (zendesk.UserService, error) {
 		return nil, err
 	}
 	return api.NewUserService(client), nil
+}
+
+func resolveSubdomain(cmd *cobra.Command) string {
+	cfg := configFromCtx(cmd.Context())
+	if cfg.Subdomain != "" {
+		return cfg.Subdomain
+	}
+	profile, _ := cmd.Flags().GetString("profile")
+	creds, err := auth.ResolveCredentials(profile)
+	if err != nil || creds == nil {
+		return ""
+	}
+	return creds.Subdomain
+}
+
+func openTicketInBrowser(cmd *cobra.Command, ticketID int64) {
+	subdomain := resolveSubdomain(cmd)
+	if subdomain == "" {
+		fmt.Fprintln(os.Stderr, "Warning: cannot open browser — subdomain not configured")
+		return
+	}
+	browser.Open(fmt.Sprintf("https://%s.zendesk.com/agent/tickets/%d", subdomain, ticketID))
 }
 
 func buildUserMap(users []types.User) map[int64]types.User {

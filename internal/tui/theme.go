@@ -177,6 +177,10 @@ var (
 	logoTextStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+
+	accentStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"}).
+			Bold(true)
 )
 
 func styledStatus(status string) string {
