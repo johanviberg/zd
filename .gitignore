@@ -12,5 +12,8 @@ credentials.json
 config.yaml
 *.pem
 
+# Docs
+docs/
+
 # OS
 .DS_Store
