@@ -115,19 +115,22 @@ changelog:
       - "^chore:"
       - "^build:"
 
-homebrew_casks:
+brews:
   - repository:
       owner: johanviberg
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/johanviberg/zd"
     description: "AI agent-friendly CLI for Zendesk"
-    completions:
-      bash: completions/zd.bash
-      zsh: completions/zd.zsh
-      fish: completions/zd.fish
-    manpages:
-      - manpages/zd.1.gz
+    license: MIT
+    install: |
+      bin.install "zd"
+      bash_completion.install "completions/zd.bash" => "zd"
+      zsh_completion.install "completions/zd.zsh" => "_zd"
+      fish_completion.install "completions/zd.fish"
+      man1.install Dir["manpages/*.1.gz"]
+    test: |
+      system "#{bin}/zd", "version"
 
 scoops:
   - repository:
