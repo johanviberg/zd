@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-13
+
+### Changed
+
+- Upgraded TUI framework to charm.land v2 ecosystem: Bubble Tea v2, Bubbles v2, Lip Gloss v2, Glamour v2
+- TUI now uses declarative View rendering (alt screen, window title) instead of imperative commands
+- Terminal theme detection via `lipgloss/v2/compat` AdaptiveColor for light/dark mode support
+- Migrated all 26 test files to `stretchr/testify` (assert/require), reducing test boilerplate by ~870 lines
+- Command palette is wider and taller for better readability
+
+### Fixed
+
+- Command palette inner width now accounts for border sizing in Lip Gloss v2
+- Command palette shortcut filtering — typing `/`, `g`, etc. now matches commands by shortcut when fuzzy search has no results
+
 ## [0.4.9] - 2026-03-12
 
 ### Added
@@ -158,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release — Zendesk CLI with ticket CRUD, search, auth (OAuth + API token), JSON/text/NDJSON output, field projection, retry with backoff, and profile support
 
-[Unreleased]: https://github.com/johanviberg/zd/compare/v0.4.9...HEAD
+[Unreleased]: https://github.com/johanviberg/zd/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/johanviberg/zd/compare/v0.4.9...v0.5.0
 [0.4.9]: https://github.com/johanviberg/zd/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/johanviberg/zd/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/johanviberg/zd/compare/v0.4.6...v0.4.7
