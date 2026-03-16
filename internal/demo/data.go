@@ -30,7 +30,8 @@ func NewStore() *Store {
 	return s
 }
 
-func (s *Store) NextID() int64 {
+// nextID must be called while holding s.mu.Lock().
+func (s *Store) nextIDLocked() int64 {
 	s.nextID++
 	return s.nextID
 }

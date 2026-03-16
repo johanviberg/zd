@@ -243,9 +243,12 @@ func registerSearchTools(server *mcp.Server, svc zendesk.SearchService) {
 		}
 
 		userMap := buildUserMap(page.Users)
-		items := make([]any, len(page.Results))
-		for i, r := range page.Results {
-			items[i] = enrichTicket(r.Ticket, userMap)
+		var items []any
+		for _, r := range page.Results {
+			if r.Ticket.ID == 0 {
+				continue // skip non-ticket results
+			}
+			items = append(items, enrichTicket(r.Ticket, userMap))
 		}
 
 		result := map[string]any{

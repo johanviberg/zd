@@ -42,8 +42,11 @@ func (s *CachedTicketService) Get(ctx context.Context, id int64, opts *types.Get
 }
 
 func (s *CachedTicketService) List(ctx context.Context, opts *types.ListTicketsOptions) (*types.TicketPage, error) {
-	key := fmt.Sprintf("ticket:list:%d:%s:%s:%s:%d:%d:%s",
-		opts.Limit, opts.Cursor, opts.Sort, opts.SortOrder,
+	if opts == nil {
+		opts = &types.ListTicketsOptions{}
+	}
+	key := fmt.Sprintf("ticket:list:%d:%s:%s:%s:%s:%d:%d:%s",
+		opts.Limit, opts.Cursor, opts.Sort, opts.SortOrder, opts.Status,
 		opts.Assignee, opts.Group, opts.Include)
 
 	if v, ok := s.cache.Get(key); ok {

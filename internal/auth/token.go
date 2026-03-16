@@ -2,7 +2,9 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -46,13 +48,19 @@ func writeCredentialsAtomically(path string, data []byte) error {
 		os.Remove(tmpPath)
 		return fmt.Errorf("writing temp file: %w", err)
 	}
+	if err := tmp.Chmod(0600); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpPath)
 		return err
 	}
-	if err := os.Chmod(tmpPath, 0600); err != nil {
+	// Re-check target is not a symlink before rename (narrows TOCTOU window)
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
 		os.Remove(tmpPath)
-		return err
+		return fmt.Errorf("credentials file is a symlink: %s", path)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
 		os.Remove(tmpPath)
@@ -65,7 +73,7 @@ func LoadCredentials(profile string) (*ProfileCredentials, error) {
 	path := config.CredentialsPath()
 
 	if err := checkCredentialFile(path); err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("credentials security check: %w", err)
@@ -95,7 +103,7 @@ func SaveCredentials(profile string, pc *ProfileCredentials) error {
 	}
 
 	// Check existing file for symlinks/permissions (ignore if not exists)
-	if err := checkCredentialFile(path); err != nil && !os.IsNotExist(err) {
+	if err := checkCredentialFile(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("credentials security check: %w", err)
 	}
 
@@ -123,7 +131,7 @@ func DeleteCredentials(profile string) error {
 	path := config.CredentialsPath()
 
 	if err := checkCredentialFile(path); err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return fmt.Errorf("credentials security check: %w", err)

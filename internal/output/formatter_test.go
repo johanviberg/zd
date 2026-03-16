@@ -142,7 +142,7 @@ func TestFieldProjection(t *testing.T) {
 	m, ok := projected.(map[string]interface{})
 	require.True(t, ok, "expected map, got %T", projected)
 	assert.NotContains(t, m, "subject", "expected 'subject' to be filtered out")
-	assert.Equal(t, float64(1), m["id"], "expected id 1") // JSON round-trip converts to float64
+	assert.Equal(t, json.Number("1"), m["id"], "expected id 1 as json.Number")
 }
 
 func TestTextFormatter_HumanTimestamps(t *testing.T) {

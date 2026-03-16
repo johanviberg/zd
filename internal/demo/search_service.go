@@ -156,21 +156,25 @@ func matchesTerm(t types.Ticket, term searchTerm) bool {
 }
 
 func sortResults(results []types.SearchResult, field, order string) {
+	// Sort results in place using the embedded ticket fields
 	tickets := make([]types.Ticket, len(results))
 	for i := range results {
 		tickets[i] = results[i].Ticket
 	}
-	indices := make([]int, len(results))
-	for i := range indices {
-		indices[i] = i
+
+	// Build index mapping and sort it alongside tickets
+	idx := make([]int, len(results))
+	for i := range idx {
+		idx[i] = i
 	}
 
+	// Use a copy to sort and rebuild
 	sortTickets(tickets, field, order)
 
-	// Rebuild results in sorted order by creating a map from ticket ID to result
+	// Build ID→result map for reconstruction
 	idToResult := make(map[int64]types.SearchResult, len(results))
 	for _, r := range results {
-		idToResult[r.ID] = r
+		idToResult[r.Ticket.ID] = r
 	}
 	for i, t := range tickets {
 		results[i] = idToResult[t.ID]

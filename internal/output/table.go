@@ -72,6 +72,7 @@ func (f *TextFormatter) FormatList(w io.Writer, items []interface{}, headers []s
 		for k := range m {
 			headers = append(headers, k)
 		}
+		sort.Strings(headers)
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)

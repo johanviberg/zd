@@ -97,8 +97,14 @@ func OAuthFlow(subdomain, clientID, clientSecret, scope string) (string, error) 
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  5 * time.Second,
 	}
 	go server.Serve(listener)
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		server.Shutdown(shutdownCtx)
+	}()
 
 	fmt.Printf("Opening browser for authorization...\n")
 	fmt.Printf("If the browser doesn't open, visit:\n%s\n\n", authURL)
@@ -112,8 +118,6 @@ func OAuthFlow(subdomain, clientID, clientSecret, scope string) (string, error) 
 	case <-time.After(5 * time.Minute):
 		return "", fmt.Errorf("OAuth flow timed out after 5 minutes")
 	}
-
-	server.Shutdown(context.Background())
 
 	// Exchange code for token
 	token, err := exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier)

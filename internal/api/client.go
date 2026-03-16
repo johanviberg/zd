@@ -52,7 +52,14 @@ func NewClient(subdomain string, creds *auth.ProfileCredentials, traceID string)
 
 func buildTransport(creds *auth.ProfileCredentials) http.RoundTripper {
 	base := http.DefaultTransport.(*http.Transport).Clone()
-	base.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	tlsCfg := base.TLSClientConfig
+	if tlsCfg == nil {
+		tlsCfg = &tls.Config{}
+	} else {
+		tlsCfg = tlsCfg.Clone()
+	}
+	tlsCfg.MinVersion = tls.VersionTLS12
+	base.TLSClientConfig = tlsCfg
 
 	authTransport := &auth.AuthTransport{
 		Credentials: creds,
@@ -140,14 +147,16 @@ func safeMethod(method string) bool {
 }
 
 func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Don't retry non-idempotent methods
+	if !safeMethod(req.Method) {
+		return t.Base.RoundTrip(req)
+	}
+
 	var resp *http.Response
 	var err error
 
 	for attempt := 0; attempt <= t.MaxRetries; attempt++ {
 		if attempt > 0 {
-			if !safeMethod(req.Method) {
-				return resp, nil
-			}
 			if req.GetBody != nil {
 				var bodyErr error
 				req.Body, bodyErr = req.GetBody()
@@ -159,6 +168,9 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 		resp, err = t.Base.RoundTrip(req)
 		if err != nil {
+			if resp != nil {
+				resp.Body.Close()
+			}
 			return nil, err
 		}
 
@@ -170,10 +182,13 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return resp, nil
 		}
 
-		// Calculate backoff
+		// Calculate backoff with cap
 		wait := time.Duration(math.Pow(2, float64(attempt))) * time.Second
 		jitter := time.Duration(rand.Int63n(int64(time.Second)))
 		wait += jitter
+		if wait > 30*time.Second {
+			wait = 30 * time.Second
+		}
 
 		// Check Retry-After header for 429, capped at 120 seconds
 		if resp.StatusCode == 429 {
@@ -187,6 +202,7 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			}
 		}
 
+		io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
 		resp.Body.Close()
 
 		select {

@@ -16,10 +16,15 @@ type AppError struct {
 	Message    string `json:"message"`
 	ExitCode   int    `json:"exitCode"`
 	RetryAfter int    `json:"retryAfter,omitempty"`
+	Cause      error  `json:"-"`
 }
 
 func (e *AppError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Code, e.Message)
+}
+
+func (e *AppError) Unwrap() error {
+	return e.Cause
 }
 
 func NewAuthError(msg string) *AppError {

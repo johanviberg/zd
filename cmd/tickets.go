@@ -25,10 +25,7 @@ var ticketsCmd = &cobra.Command{
 	Long:  "List, show, create, update, delete, and search Zendesk tickets.",
 }
 
-func newTicketService(cmd *cobra.Command) (zendesk.TicketService, error) {
-	if store := demoStoreFromCtx(cmd.Context()); store != nil {
-		return demo.NewTicketService(store), nil
-	}
+func buildClient(cmd *cobra.Command) (*api.Client, error) {
 	cfg := configFromCtx(cmd.Context())
 	profile, _ := cmd.Flags().GetString("profile")
 	traceID, _ := cmd.Flags().GetString("trace-id")
@@ -49,7 +46,14 @@ func newTicketService(cmd *cobra.Command) (zendesk.TicketService, error) {
 		return nil, types.NewArgError("subdomain is required")
 	}
 
-	client, err := api.NewClient(subdomain, creds, traceID)
+	return api.NewClient(subdomain, creds, traceID)
+}
+
+func newTicketService(cmd *cobra.Command) (zendesk.TicketService, error) {
+	if store := demoStoreFromCtx(cmd.Context()); store != nil {
+		return demo.NewTicketService(store), nil
+	}
+	client, err := buildClient(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -60,27 +64,7 @@ func newSearchService(cmd *cobra.Command) (zendesk.SearchService, error) {
 	if store := demoStoreFromCtx(cmd.Context()); store != nil {
 		return demo.NewSearchService(store), nil
 	}
-	cfg := configFromCtx(cmd.Context())
-	profile, _ := cmd.Flags().GetString("profile")
-	traceID, _ := cmd.Flags().GetString("trace-id")
-
-	creds, err := auth.ResolveCredentials(profile)
-	if err != nil {
-		return nil, err
-	}
-	if creds == nil {
-		return nil, types.NewAuthError("not authenticated — run 'zd auth login' first")
-	}
-
-	subdomain := cfg.Subdomain
-	if subdomain == "" {
-		subdomain = creds.Subdomain
-	}
-	if subdomain == "" {
-		return nil, types.NewArgError("subdomain is required")
-	}
-
-	client, err := api.NewClient(subdomain, creds, traceID)
+	client, err := buildClient(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -91,27 +75,7 @@ func newUserService(cmd *cobra.Command) (zendesk.UserService, error) {
 	if store := demoStoreFromCtx(cmd.Context()); store != nil {
 		return demo.NewUserService(store), nil
 	}
-	cfg := configFromCtx(cmd.Context())
-	profile, _ := cmd.Flags().GetString("profile")
-	traceID, _ := cmd.Flags().GetString("trace-id")
-
-	creds, err := auth.ResolveCredentials(profile)
-	if err != nil {
-		return nil, err
-	}
-	if creds == nil {
-		return nil, types.NewAuthError("not authenticated — run 'zd auth login' first")
-	}
-
-	subdomain := cfg.Subdomain
-	if subdomain == "" {
-		subdomain = creds.Subdomain
-	}
-	if subdomain == "" {
-		return nil, types.NewArgError("subdomain is required")
-	}
-
-	client, err := api.NewClient(subdomain, creds, traceID)
+	client, err := buildClient(cmd)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,10 @@ func (c *Cache) Get(key string) (any, bool) {
 	}
 	if time.Now().After(entry.expiresAt) {
 		c.mu.Lock()
-		delete(c.entries, key)
+		// Re-check under write lock to avoid deleting a freshly-Set entry
+		if e, ok := c.entries[key]; ok && time.Now().After(e.expiresAt) {
+			delete(c.entries, key)
+		}
 		c.mu.Unlock()
 		return nil, false
 	}

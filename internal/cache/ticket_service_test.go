@@ -169,3 +169,32 @@ func TestDifferentOptsAreDifferentCacheKeys(t *testing.T) {
 		t.Fatal("different opts should produce different cache keys")
 	}
 }
+
+func TestListCacheKeyIncludesStatus(t *testing.T) {
+	_, ts, _ := setup()
+	ctx := context.Background()
+
+	// Populate the cache with Status "open"
+	openPage, err := ts.List(ctx, &types.ListTicketsOptions{Status: "open"})
+	require.NoError(t, err)
+
+	// Populate the cache with Status "pending"
+	pendingPage, err := ts.List(ctx, &types.ListTicketsOptions{Status: "pending"})
+	require.NoError(t, err)
+
+	// Both calls should succeed, but they must use independent cache entries:
+	// if Status were excluded from the key, the second call would return the
+	// "open" result instead of filtering for "pending".
+	for _, ticket := range openPage.Tickets {
+		assert.Equal(t, "open", ticket.Status, "expected only open tickets")
+	}
+	for _, ticket := range pendingPage.Tickets {
+		assert.Equal(t, "pending", ticket.Status, "expected only pending tickets")
+	}
+
+	// The two pages must differ — if the cache key did not include Status,
+	// pendingPage would be a stale hit containing "open" tickets.
+	assert.NotEqual(t, len(openPage.Tickets), 0, "expected at least one open ticket in demo data")
+	assert.NotEqual(t, openPage.Tickets[0].Status, pendingPage.Tickets[0].Status,
+		"cache key must include Status: open and pending results must differ")
+}

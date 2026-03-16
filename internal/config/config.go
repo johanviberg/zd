@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -67,15 +69,12 @@ func Load(profile string) (*Config, error) {
 	v.SetConfigFile(ConfigPath())
 	v.SetConfigType("yaml")
 
-	v.SetEnvPrefix("ZENDESK")
-	v.BindEnv("subdomain")
-
 	cfg := &Config{Profile: profile}
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// No config file — continue with defaults/env
-		} else if os.IsNotExist(err) {
+		} else if errors.Is(err, fs.ErrNotExist) {
 			// File doesn't exist yet — continue with defaults/env
 		} else {
 			return nil, fmt.Errorf("reading config: %w", err)

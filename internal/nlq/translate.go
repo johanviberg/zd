@@ -16,6 +16,17 @@ var knownFields = []string{
 
 var syntaxPattern *regexp.Regexp
 
+// Pre-compiled regexes for phrase extraction
+var (
+	reAssignedTo  = regexp.MustCompile(`assigned\s+to\s+(\S+)`)
+	reRequestedBy = regexp.MustCompile(`requested\s+by\s+(\S+)`)
+	reFrom        = regexp.MustCompile(`\bfrom\s+(\S+)`)
+	reTagged      = regexp.MustCompile(`\b(?:tagged|tag)\s+(\S+)`)
+	reAbout       = regexp.MustCompile(`\babout\s+(.+)`)
+	reLastNHours  = regexp.MustCompile(`(?:last|past)\s+(\d+)\s+hours?`)
+	reLastNDays   = regexp.MustCompile(`(?:last|past)\s+(\d+)\s+days?`)
+)
+
 func init() {
 	// Match patterns like field:value, field>value, field<value, -field:value
 	escaped := make([]string, len(knownFields))
@@ -138,38 +149,33 @@ func extractPhrases(input string, clauses []string, now time.Time) (string, []st
 	}
 
 	// "assigned to <name>"
-	re := regexp.MustCompile(`assigned\s+to\s+(\S+)`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reAssignedTo.FindStringSubmatch(input); m != nil {
 		clauses = append(clauses, "assignee:"+m[1])
-		input = re.ReplaceAllString(input, " ")
+		input = reAssignedTo.ReplaceAllString(input, " ")
 	}
 
 	// "requested by <name>"
-	re = regexp.MustCompile(`requested\s+by\s+(\S+)`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reRequestedBy.FindStringSubmatch(input); m != nil {
 		clauses = append(clauses, "requester:"+m[1])
-		input = re.ReplaceAllString(input, " ")
+		input = reRequestedBy.ReplaceAllString(input, " ")
 	}
 
 	// "from <group>" — only match if not at the very start (contextual)
-	re = regexp.MustCompile(`\bfrom\s+(\S+)`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reFrom.FindStringSubmatch(input); m != nil {
 		clauses = append(clauses, "group:"+m[1])
-		input = re.ReplaceAllString(input, " ")
+		input = reFrom.ReplaceAllString(input, " ")
 	}
 
 	// "tagged <tag>" / "tag <tag>"
-	re = regexp.MustCompile(`\b(?:tagged|tag)\s+(\S+)`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reTagged.FindStringSubmatch(input); m != nil {
 		clauses = append(clauses, "tags:"+m[1])
-		input = re.ReplaceAllString(input, " ")
+		input = reTagged.ReplaceAllString(input, " ")
 	}
 
 	// "about <subject>" — remainder becomes bare text
-	re = regexp.MustCompile(`\babout\s+(.+)`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reAbout.FindStringSubmatch(input); m != nil {
 		clauses = append(clauses, strings.TrimSpace(m[1]))
-		input = re.ReplaceAllString(input, " ")
+		input = reAbout.ReplaceAllString(input, " ")
 	}
 
 	// Date phrases
@@ -223,12 +229,11 @@ func extractDatePhrases(input string, clauses []string, now time.Time) (string, 
 	}
 
 	// "last/past N hour(s)" — e.g. "past 3 hours"
-	re := regexp.MustCompile(`(?:last|past)\s+(\d+)\s+hours?`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reLastNHours.FindStringSubmatch(input); m != nil {
 		n, _ := strconv.Atoi(m[1])
 		t := now.Add(-time.Duration(n) * time.Hour)
 		clauses = append(clauses, "created>"+t.UTC().Format(time.RFC3339))
-		input = re.ReplaceAllString(input, " ")
+		input = reLastNHours.ReplaceAllString(input, " ")
 	}
 
 	// "last/past hour" (no number = 1 hour)
@@ -240,12 +245,11 @@ func extractDatePhrases(input string, clauses []string, now time.Time) (string, 
 	}
 
 	// "last N days" / "past N days"
-	re = regexp.MustCompile(`(?:last|past)\s+(\d+)\s+days?`)
-	if m := re.FindStringSubmatch(input); m != nil {
+	if m := reLastNDays.FindStringSubmatch(input); m != nil {
 		n, _ := strconv.Atoi(m[1])
 		date := now.AddDate(0, 0, -n)
 		clauses = append(clauses, "created>"+date.Format("2006-01-02"))
-		input = re.ReplaceAllString(input, " ")
+		input = reLastNDays.ReplaceAllString(input, " ")
 	}
 
 	// "yesterday"

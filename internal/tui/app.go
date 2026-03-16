@@ -72,8 +72,8 @@ func NewApp(tickets zendesk.TicketService, search zendesk.SearchService, users z
 		users:      users,
 		subdomain:  subdomain,
 		version:    version,
-		state:      splitView,
-		showDetail: true,
+		state:      listView,
+		showDetail: false,
 		focus:      focusList,
 		list:       newListModel(tickets, search),
 		detail:     newDetailModel(tickets),
@@ -127,6 +127,26 @@ func (m App) autoLoadFirstTicket() tea.Cmd {
 	m.detail.width = w
 	m.detail.height = m.height
 	return tea.Batch(m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
+}
+
+func (m *App) reloadDetailIfVisible() []tea.Cmd {
+	if m.state != splitView || !m.showDetail {
+		return nil
+	}
+	if len(m.list.items) > 0 {
+		id := m.list.items[m.list.cursor].ID
+		m.detail = newDetailModel(m.tickets)
+		m.detail.expectedID = id
+		m.detail.width = m.detailPanelWidth()
+		m.detail.height = m.height
+		return []tea.Cmd{m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id)}
+	}
+	// Clear detail panel when no items
+	m.detail = newDetailModel(m.tickets)
+	m.detail.loading = false
+	m.detail.width = m.detailPanelWidth()
+	m.detail.height = m.height
+	return nil
 }
 
 func (m *App) loadDetailForCursor() tea.Cmd {
@@ -198,9 +218,15 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		// Auto-collapse to list-only on narrow terminals
-		if m.width < 80 && m.state == splitView {
+		if m.width < 120 && m.state == splitView {
 			m.state = listView
 			m.showDetail = false
+		}
+
+		// Auto-expand to split view on wide terminals
+		if m.width >= 120 && m.state == listView && !m.showDetail {
+			m.state = splitView
+			m.showDetail = true
 		}
 
 		// Kanban too narrow — switch back to list
@@ -282,7 +308,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Esc handling for split view
-			if msg.String() == "esc" && m.state == splitView {
+			if key.Matches(msg, keys.Back) && m.state == splitView {
 				if m.focus == focusDetail {
 					m.focus = focusList
 					return m, nil
@@ -296,14 +322,14 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Clear search results on esc in list view
-			if msg.String() == "esc" && m.state == listView && m.list.searchQuery != "" {
+			if key.Matches(msg, keys.Back) && m.state == listView && m.list.searchQuery != "" {
 				m.list.searchQuery = ""
 				m.list.loading = true
 				return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
 			}
 
 			// Clear search results on esc in kanban view
-			if msg.String() == "esc" && m.state == kanbanView && m.list.searchQuery != "" {
+			if key.Matches(msg, keys.Back) && m.state == kanbanView && m.list.searchQuery != "" {
 				m.list.searchQuery = ""
 				m.list.loading = true
 				return m, tea.Batch(m.list.spinner.Tick, m.list.loadTickets())
@@ -408,23 +434,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		cmds := []tea.Cmd{cmd, m.updateWindowTitle()}
-		if m.state == splitView && m.showDetail {
-			if len(m.list.items) > 0 {
-				// Auto-load first ticket
-				id := m.list.items[m.list.cursor].ID
-				m.detail = newDetailModel(m.tickets)
-				m.detail.expectedID = id
-				m.detail.width = m.detailPanelWidth()
-				m.detail.height = m.height
-				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
-			} else {
-				// Clear detail panel when no tickets
-				m.detail = newDetailModel(m.tickets)
-				m.detail.loading = false
-				m.detail.width = m.detailPanelWidth()
-				m.detail.height = m.height
-			}
-		}
+		cmds = append(cmds, m.reloadDetailIfVisible()...)
 		if m.state == kanbanView {
 			m.kanban.rebuildColumns(m.list.items)
 		}
@@ -434,23 +444,7 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		cmds := []tea.Cmd{cmd, m.updateWindowTitle()}
-		if m.state == splitView && m.showDetail {
-			if len(m.list.items) > 0 {
-				// Auto-load first result
-				id := m.list.items[m.list.cursor].ID
-				m.detail = newDetailModel(m.tickets)
-				m.detail.expectedID = id
-				m.detail.width = m.detailPanelWidth()
-				m.detail.height = m.height
-				cmds = append(cmds, m.detail.spinner.Tick, m.detail.loadTicket(id), m.detail.loadAudits(id))
-			} else {
-				// Clear detail panel when no results
-				m.detail = newDetailModel(m.tickets)
-				m.detail.loading = false
-				m.detail.width = m.detailPanelWidth()
-				m.detail.height = m.height
-			}
-		}
+		cmds = append(cmds, m.reloadDetailIfVisible()...)
 		if m.state == kanbanView {
 			m.kanban.rebuildColumns(m.list.items)
 		}

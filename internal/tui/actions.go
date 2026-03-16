@@ -64,7 +64,7 @@ func newActionsModel(tickets zendesk.TicketService, users zendesk.UserService) a
 	return actionsModel{
 		tickets:  tickets,
 		textarea: ta,
-		isPublic: false,
+		isPublic: true,
 		spinner:  s,
 		ccPicker: newCCPickerModel(users),
 	}
@@ -73,7 +73,7 @@ func newActionsModel(tickets zendesk.TicketService, users zendesk.UserService) a
 func (m actionsModel) openComment(ticketID int64) (actionsModel, tea.Cmd) {
 	m.ticketID = ticketID
 	m.mode = actionComment
-	m.isPublic = false
+	m.isPublic = true
 	m.err = nil
 	m.ccFocused = false
 	m.ccPicker = m.ccPicker.reset()

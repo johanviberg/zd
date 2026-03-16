@@ -25,7 +25,7 @@ func TestExchangeCode(t *testing.T) {
 			TokenType:   "bearer",
 		})
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
 
 	// We can't test exchangeCode directly because it constructs its own URL.
 	// Instead test the state generation.

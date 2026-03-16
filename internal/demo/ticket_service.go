@@ -114,7 +114,7 @@ func (s *TicketService) Create(ctx context.Context, req *types.CreateTicketReque
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
 
-	id := s.store.NextID()
+	id := s.store.nextIDLocked()
 	now := nowUTC()
 
 	t := types.Ticket{

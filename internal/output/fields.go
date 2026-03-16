@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 func projectFields(data interface{}, fields []string) interface{} {
@@ -9,14 +10,16 @@ func projectFields(data interface{}, fields []string) interface{} {
 		return data
 	}
 
-	// Convert to map via JSON round-trip
+	// Convert to map via JSON round-trip, preserving numeric types
 	b, err := json.Marshal(data)
 	if err != nil {
 		return data
 	}
 
+	d := json.NewDecoder(strings.NewReader(string(b)))
+	d.UseNumber()
 	var m map[string]interface{}
-	if err := json.Unmarshal(b, &m); err != nil {
+	if err := d.Decode(&m); err != nil {
 		return data
 	}
 

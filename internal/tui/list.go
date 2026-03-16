@@ -273,6 +273,12 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 				newCount++
 			}
 		}
+		// Prune newTicketIDs for tickets no longer in the set
+		for id := range m.newTicketIDs {
+			if !newKnown[id] {
+				delete(m.newTicketIDs, id)
+			}
+		}
 		m.lastRefreshNewCount = newCount
 		m.knownTicketIDs = newKnown
 		m.items = msg.page.Tickets

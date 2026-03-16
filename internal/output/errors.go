@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,12 +26,13 @@ func PrintError(w io.Writer, err error, jsonOutput bool) {
 			Message:       err.Error(),
 			ExitCode:      1,
 		}
-		if appErr, ok := err.(*types.AppError); ok {
+		var appErr *types.AppError
+		if errors.As(err, &appErr) {
 			resp.Code = appErr.Code
 			resp.ExitCode = appErr.ExitCode
 			resp.RetryAfter = appErr.RetryAfter
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 		return
 	}
 	fmt.Fprintf(w, "Error: %s\n", err.Error())
@@ -39,7 +41,8 @@ func PrintError(w io.Writer, err error, jsonOutput bool) {
 func ExitWithError(err error, jsonOutput bool) {
 	PrintError(os.Stderr, err, jsonOutput)
 	exitCode := 1
-	if appErr, ok := err.(*types.AppError); ok {
+	var appErr *types.AppError
+	if errors.As(err, &appErr) {
 		exitCode = appErr.ExitCode
 	}
 	os.Exit(exitCode)
