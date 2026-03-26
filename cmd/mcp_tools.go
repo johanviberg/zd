@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/johanviberg/zd/internal/nlq"
 	"github.com/johanviberg/zd/internal/types"
 	"github.com/johanviberg/zd/pkg/zendesk"
 )
@@ -30,6 +31,9 @@ type ListTicketsInput struct {
 	AssigneeID int64  `json:"assignee_id,omitempty" jsonschema:"Filter by assignee user ID"`
 	GroupID    int64  `json:"group_id,omitempty" jsonschema:"Filter by group ID"`
 	Limit      int    `json:"limit,omitempty" jsonschema:"Max tickets to return (default 20, max 100)"`
+	Cursor     string `json:"cursor,omitempty" jsonschema:"Pagination cursor for next page"`
+	Sort       string `json:"sort,omitempty" jsonschema:"Sort field (default: updated_at)"`
+	SortOrder  string `json:"sort_order,omitempty" jsonschema:"Sort order: asc or desc (default: desc)"`
 }
 
 type ShowTicketInput struct {
@@ -37,30 +41,86 @@ type ShowTicketInput struct {
 }
 
 type SearchTicketsInput struct {
-	Query string `json:"query" jsonschema:"Zendesk search query using search syntax. Examples: 'status:open priority:high', 'tags:billing assignee:jane', 'created>2024-01-01 status:open', 'status:open OR status:pending'"`
-	Limit int    `json:"limit,omitempty" jsonschema:"Max results to return (default 20, max 100)"`
+	Query     string `json:"query" jsonschema:"Search query. Supports Zendesk syntax ('status:open priority:high') or natural language ('urgent tickets assigned to jane')"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max results to return (default 20, max 100)"`
+	Cursor    string `json:"cursor,omitempty" jsonschema:"Pagination cursor for next page"`
+	SortBy    string `json:"sort_by,omitempty" jsonschema:"Sort field"`
+	SortOrder string `json:"sort_order,omitempty" jsonschema:"Sort order: asc or desc (default: desc)"`
 }
 
 type CreateTicketInput struct {
-	Subject  string   `json:"subject" jsonschema:"Ticket subject (required)"`
-	Comment  string   `json:"comment" jsonschema:"Ticket body/description (required)"`
-	Priority string   `json:"priority,omitempty" jsonschema:"Priority: urgent, high, normal, low"`
-	Tags     []string `json:"tags,omitempty" jsonschema:"Tags to add to the ticket"`
+	Subject        string             `json:"subject" jsonschema:"Ticket subject (required)"`
+	Comment        string             `json:"comment" jsonschema:"Ticket body/description (required)"`
+	Priority       string             `json:"priority,omitempty" jsonschema:"Priority: urgent, high, normal, low"`
+	Type           string             `json:"type,omitempty" jsonschema:"Type: problem, incident, question, task"`
+	Status         string             `json:"status,omitempty" jsonschema:"Status: new, open, pending, hold, solved, closed"`
+	AssigneeID     int64              `json:"assignee_id,omitempty" jsonschema:"Assignee user ID"`
+	GroupID        int64              `json:"group_id,omitempty" jsonschema:"Group ID"`
+	Tags           []string           `json:"tags,omitempty" jsonschema:"Tags to add to the ticket"`
+	CustomFields   []CustomFieldInput `json:"custom_fields,omitempty" jsonschema:"Custom fields"`
+	RequesterEmail string             `json:"requester_email,omitempty" jsonschema:"Requester email (for on-behalf-of creation)"`
+	RequesterName  string             `json:"requester_name,omitempty" jsonschema:"Requester display name"`
 }
 
 type UpdateTicketInput struct {
-	ID         int64    `json:"id" jsonschema:"Zendesk ticket ID (required)"`
-	Comment    string   `json:"comment,omitempty" jsonschema:"Add a comment to the ticket"`
-	Public     *bool    `json:"public,omitempty" jsonschema:"Whether comment is public (default true). Set to false for internal notes"`
-	Status     string   `json:"status,omitempty" jsonschema:"Set status: new, open, pending, hold, solved, closed"`
-	Priority   string   `json:"priority,omitempty" jsonschema:"Set priority: urgent, high, normal, low"`
-	AddTags    []string `json:"add_tags,omitempty" jsonschema:"Tags to add"`
-	RemoveTags []string `json:"remove_tags,omitempty" jsonschema:"Tags to remove"`
-	CC         []string `json:"cc,omitempty" jsonschema:"Add CCs to the comment (emails or user IDs). Ignored for internal notes"`
+	ID           int64              `json:"id" jsonschema:"Zendesk ticket ID (required)"`
+	Subject      string             `json:"subject,omitempty" jsonschema:"Update ticket subject"`
+	Comment      string             `json:"comment,omitempty" jsonschema:"Add a comment to the ticket"`
+	Public       *bool              `json:"public,omitempty" jsonschema:"Whether comment is public (default true). Set to false for internal notes"`
+	Status       string             `json:"status,omitempty" jsonschema:"Set status: new, open, pending, hold, solved, closed"`
+	Priority     string             `json:"priority,omitempty" jsonschema:"Set priority: urgent, high, normal, low"`
+	AssigneeID   *int64             `json:"assignee_id,omitempty" jsonschema:"Assignee user ID (send 0 to unassign)"`
+	GroupID      *int64             `json:"group_id,omitempty" jsonschema:"Group ID (send 0 to unset)"`
+	Tags         []string           `json:"tags,omitempty" jsonschema:"Replace all tags"`
+	AddTags      []string           `json:"add_tags,omitempty" jsonschema:"Tags to add"`
+	RemoveTags   []string           `json:"remove_tags,omitempty" jsonschema:"Tags to remove"`
+	CustomFields []CustomFieldInput `json:"custom_fields,omitempty" jsonschema:"Custom fields"`
+	SafeUpdate   bool               `json:"safe_update,omitempty" jsonschema:"Enable conflict detection"`
+	CC           []string           `json:"cc,omitempty" jsonschema:"Add CCs to the comment (emails or user IDs). Ignored for internal notes"`
 }
 
 type DeleteTicketInput struct {
 	ID int64 `json:"id" jsonschema:"Zendesk ticket ID (required)"`
+}
+
+type ListCommentsInput struct {
+	TicketID  int64  `json:"ticket_id" jsonschema:"Zendesk ticket ID (required)"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max comments to return (default 100)"`
+	Cursor    string `json:"cursor,omitempty" jsonschema:"Pagination cursor"`
+	SortOrder string `json:"sort_order,omitempty" jsonschema:"Sort order: asc or desc (default: asc)"`
+}
+
+type ListArticlesInput struct {
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max articles to return (default 25, max 100)"`
+	Cursor    string `json:"cursor,omitempty" jsonschema:"Pagination cursor"`
+	SortBy    string `json:"sort_by,omitempty" jsonschema:"Sort: title, created_at, updated_at"`
+	SortOrder string `json:"sort_order,omitempty" jsonschema:"Sort order: asc or desc (default: desc)"`
+}
+
+type ShowArticleInput struct {
+	ID int64 `json:"id" jsonschema:"Help Center article ID (required)"`
+}
+
+type SearchArticlesInput struct {
+	Query  string `json:"query" jsonschema:"Search query for Help Center articles (required)"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"Max results to return (default 25, max 100)"`
+	Cursor string `json:"cursor,omitempty" jsonschema:"Pagination cursor"`
+}
+
+type CustomFieldInput struct {
+	ID    int64       `json:"id" jsonschema:"Custom field ID"`
+	Value interface{} `json:"value" jsonschema:"Custom field value"`
+}
+
+func convertCustomFields(inputs []CustomFieldInput) []types.CustomField {
+	if len(inputs) == 0 {
+		return nil
+	}
+	fields := make([]types.CustomField, len(inputs))
+	for i, f := range inputs {
+		fields[i] = types.CustomField{ID: f.ID, Value: f.Value}
+	}
+	return fields
 }
 
 // --- Registration ---
@@ -80,13 +140,23 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 			limit = 100
 		}
 
+		sort := args.Sort
+		if sort == "" {
+			sort = "updated_at"
+		}
+		sortOrder := args.SortOrder
+		if sortOrder == "" {
+			sortOrder = "desc"
+		}
+
 		page, err := svc.List(ctx, &types.ListTicketsOptions{
 			Status:    args.Status,
 			Assignee:  args.AssigneeID,
 			Group:     args.GroupID,
 			Limit:     limit,
-			Sort:      "updated_at",
-			SortOrder: "desc",
+			Cursor:    args.Cursor,
+			Sort:      sort,
+			SortOrder: sortOrder,
 			Include:   "users",
 		})
 		if err != nil {
@@ -99,7 +169,13 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 			items[i] = enrichTicket(t, userMap)
 		}
 
-		return jsonResult(items), nil, nil
+		result := map[string]any{"tickets": items}
+		if page.Meta.HasMore {
+			result["has_more"] = true
+			result["next_cursor"] = page.Meta.AfterCursor
+		}
+
+		return jsonResult(result), nil, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -140,10 +216,17 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 		}
 
 		ticket, err := svc.Create(ctx, &types.CreateTicketRequest{
-			Subject:  args.Subject,
-			Comment:  types.Comment{Body: args.Comment},
-			Priority: args.Priority,
-			Tags:     args.Tags,
+			Subject:        args.Subject,
+			Comment:        types.Comment{Body: args.Comment},
+			Priority:       args.Priority,
+			Type:           args.Type,
+			Status:         args.Status,
+			AssigneeID:     args.AssigneeID,
+			GroupID:        args.GroupID,
+			Tags:           args.Tags,
+			CustomFields:   convertCustomFields(args.CustomFields),
+			RequesterEmail: args.RequesterEmail,
+			RequesterName:  args.RequesterName,
 		})
 		if err != nil {
 			return errorResult(err), nil, nil
@@ -162,10 +245,16 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 		}
 
 		updateReq := &types.UpdateTicketRequest{
-			Status:     args.Status,
-			Priority:   args.Priority,
-			AddTags:    args.AddTags,
-			RemoveTags: args.RemoveTags,
+			Subject:      args.Subject,
+			Status:       args.Status,
+			Priority:     args.Priority,
+			AssigneeID:   args.AssigneeID,
+			GroupID:      args.GroupID,
+			Tags:         args.Tags,
+			AddTags:      args.AddTags,
+			RemoveTags:   args.RemoveTags,
+			CustomFields: convertCustomFields(args.CustomFields),
+			SafeUpdate:   args.SafeUpdate,
 		}
 
 		if args.Comment != "" {
@@ -209,16 +298,58 @@ func registerTicketTools(server *mcp.Server, svc zendesk.TicketService) {
 			"ticket_id": args.ID,
 		}), nil, nil
 	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "zendesk_list_comments",
+		Description: "List comments on a Zendesk ticket including agent replies, " +
+			"customer messages, and internal notes. Returns comment body, author info, and timestamps.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args ListCommentsInput) (*mcp.CallToolResult, any, error) {
+		if args.TicketID == 0 {
+			return errorResult(types.NewArgError("ticket_id is required")), nil, nil
+		}
+
+		limit := args.Limit
+		if limit == 0 {
+			limit = 100
+		}
+
+		sortOrder := args.SortOrder
+		if sortOrder == "" {
+			sortOrder = "asc"
+		}
+
+		page, err := svc.ListComments(ctx, args.TicketID, &types.ListCommentsOptions{
+			Limit:     limit,
+			Cursor:    args.Cursor,
+			SortOrder: sortOrder,
+			Include:   "users",
+		})
+		if err != nil {
+			return errorResult(err), nil, nil
+		}
+
+		userMap := buildUserMap(page.Users)
+		items := make([]any, len(page.Comments))
+		for i, c := range page.Comments {
+			items[i] = enrichComment(c, userMap)
+		}
+
+		result := map[string]any{"comments": items}
+		if page.Meta.HasMore {
+			result["has_more"] = true
+			result["next_cursor"] = page.Meta.AfterCursor
+		}
+
+		return jsonResult(result), nil, nil
+	})
 }
 
 func registerSearchTools(server *mcp.Server, svc zendesk.SearchService) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "zendesk_search_tickets",
-		Description: "Search Zendesk tickets using search syntax. " +
-			"Query examples: 'status:open priority:high', 'tags:billing', " +
-			"'assignee:jane status:pending', 'created>2024-01-01 status:open', " +
-			"'status:open OR status:pending'. " +
-			"Combine terms with spaces (AND) or 'OR'. " +
+		Description: "Search Zendesk tickets. Accepts Zendesk search syntax " +
+			"('status:open priority:high', 'tags:billing assignee:jane') " +
+			"or natural language ('urgent tickets assigned to jane'). " +
 			"Fields: status, priority, type, assignee, requester, group, subject, description, tags, created, updated, organization.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args SearchTicketsInput) (*mcp.CallToolResult, any, error) {
 		if args.Query == "" {
@@ -233,9 +364,18 @@ func registerSearchTools(server *mcp.Server, svc zendesk.SearchService) {
 			limit = 100
 		}
 
-		page, err := svc.Search(ctx, args.Query, &types.SearchOptions{
+		query := nlq.Translate(args.Query)
+
+		sortOrder := args.SortOrder
+		if sortOrder == "" {
+			sortOrder = "desc"
+		}
+
+		page, err := svc.Search(ctx, query, &types.SearchOptions{
 			Limit:     limit,
-			SortOrder: "desc",
+			Cursor:    args.Cursor,
+			SortBy:    args.SortBy,
+			SortOrder: sortOrder,
 			Include:   "users",
 		})
 		if err != nil {
@@ -254,6 +394,113 @@ func registerSearchTools(server *mcp.Server, svc zendesk.SearchService) {
 		result := map[string]any{
 			"count":   page.Count,
 			"tickets": items,
+		}
+		if page.Meta.HasMore {
+			result["has_more"] = true
+			result["next_cursor"] = page.Meta.AfterCursor
+		}
+
+		return jsonResult(result), nil, nil
+	})
+}
+
+func registerArticleTools(server *mcp.Server, svc zendesk.ArticleService) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "zendesk_list_articles",
+		Description: "List Help Center articles. " +
+			"Returns article title, body, author, and timestamps.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args ListArticlesInput) (*mcp.CallToolResult, any, error) {
+		limit := args.Limit
+		if limit == 0 {
+			limit = 25
+		}
+		if limit > 100 {
+			limit = 100
+		}
+
+		sortOrder := args.SortOrder
+		if sortOrder == "" {
+			sortOrder = "desc"
+		}
+
+		page, err := svc.List(ctx, &types.ListArticlesOptions{
+			Limit:     limit,
+			Cursor:    args.Cursor,
+			SortBy:    args.SortBy,
+			SortOrder: sortOrder,
+		})
+		if err != nil {
+			return errorResult(err), nil, nil
+		}
+
+		items := make([]any, len(page.Articles))
+		for i, a := range page.Articles {
+			items[i] = a
+		}
+
+		result := map[string]any{"articles": items}
+		if page.Meta.HasMore {
+			result["has_more"] = true
+			result["next_cursor"] = page.Meta.AfterCursor
+		}
+
+		return jsonResult(result), nil, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "zendesk_show_article",
+		Description: "Show full details for a Help Center article " +
+			"including title, body, author, and labels.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args ShowArticleInput) (*mcp.CallToolResult, any, error) {
+		if args.ID == 0 {
+			return errorResult(types.NewArgError("article id is required")), nil, nil
+		}
+
+		result, err := svc.Get(ctx, args.ID)
+		if err != nil {
+			return errorResult(err), nil, nil
+		}
+
+		return jsonResult(result.Article), nil, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "zendesk_search_articles",
+		Description: "Search Help Center articles by keyword. " +
+			"Returns matching articles with title, body snippet, and metadata.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args SearchArticlesInput) (*mcp.CallToolResult, any, error) {
+		if args.Query == "" {
+			return errorResult(types.NewArgError("query is required")), nil, nil
+		}
+
+		limit := args.Limit
+		if limit == 0 {
+			limit = 25
+		}
+		if limit > 100 {
+			limit = 100
+		}
+
+		page, err := svc.Search(ctx, args.Query, &types.SearchArticlesOptions{
+			Limit:  limit,
+			Cursor: args.Cursor,
+		})
+		if err != nil {
+			return errorResult(err), nil, nil
+		}
+
+		items := make([]any, len(page.Results))
+		for i, a := range page.Results {
+			items[i] = a
+		}
+
+		result := map[string]any{
+			"count":    page.Count,
+			"articles": items,
+		}
+		if page.Meta.HasMore {
+			result["has_more"] = true
+			result["next_cursor"] = page.Meta.AfterCursor
 		}
 
 		return jsonResult(result), nil, nil

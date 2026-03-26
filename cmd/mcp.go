@@ -31,6 +31,11 @@ var mcpServeCmd = &cobra.Command{
 			return err
 		}
 
+		articleSvc, err := newArticleService(cmd)
+		if err != nil {
+			return err
+		}
+
 		server := mcp.NewServer(&mcp.Implementation{
 			Name:    "zd",
 			Version: buildVersion,
@@ -38,6 +43,7 @@ var mcpServeCmd = &cobra.Command{
 
 		registerTicketTools(server, ticketSvc)
 		registerSearchTools(server, searchSvc)
+		registerArticleTools(server, articleSvc)
 
 		return server.Run(cmd.Context(), &mcp.StdioTransport{})
 	},
