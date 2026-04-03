@@ -46,7 +46,7 @@ func buildClient(cmd *cobra.Command) (*api.Client, error) {
 		return nil, types.NewArgError("subdomain is required")
 	}
 
-	return api.NewClient(subdomain, creds, traceID)
+	return api.NewClient(subdomain, creds, profile, traceID)
 }
 
 func newTicketService(cmd *cobra.Command) (zendesk.TicketService, error) {

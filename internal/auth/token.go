@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/johanviberg/zd/internal/config"
 )
@@ -16,12 +17,23 @@ type Credentials struct {
 }
 
 type ProfileCredentials struct {
-	Method        string `json:"method"`
-	Subdomain     string `json:"subdomain"`
-	Email         string `json:"email,omitempty"`
-	APIToken      string `json:"api_token,omitempty"`
-	OAuthToken    string `json:"oauth_token,omitempty"`
-	OAuthClientID string `json:"oauth_client_id,omitempty"`
+	Method         string     `json:"method"`
+	Subdomain      string     `json:"subdomain"`
+	Email          string     `json:"email,omitempty"`
+	APIToken       string     `json:"api_token,omitempty"`
+	OAuthToken     string     `json:"oauth_token,omitempty"`
+	OAuthClientID  string     `json:"oauth_client_id,omitempty"`
+	RefreshToken   string     `json:"refresh_token,omitempty"`
+	TokenExpiresAt *time.Time `json:"token_expires_at,omitempty"`
+}
+
+// IsTokenExpired returns true if the OAuth token is within 60 seconds of expiry.
+// Returns false if no expiry is set (backward compat with legacy tokens).
+func (pc *ProfileCredentials) IsTokenExpired() bool {
+	if pc.TokenExpiresAt == nil {
+		return false
+	}
+	return time.Now().After(pc.TokenExpiresAt.Add(-60 * time.Second))
 }
 
 func checkCredentialFile(path string) error {

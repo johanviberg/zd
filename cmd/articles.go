@@ -40,7 +40,7 @@ func newArticleService(cmd *cobra.Command) (zendesk.ArticleService, error) {
 		return nil, types.NewArgError("subdomain is required")
 	}
 
-	client, err := api.NewClient(subdomain, creds, traceID)
+	client, err := api.NewClient(subdomain, creds, profile, traceID)
 	if err != nil {
 		return nil, err
 	}

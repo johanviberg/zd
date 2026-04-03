@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -186,6 +188,85 @@ func TestSaveCredentials_SymlinkRejected(t *testing.T) {
 	err := SaveCredentials("default", &ProfileCredentials{Method: "token"})
 	require.Error(t, err, "expected error for symlink, got nil")
 	assert.Contains(t, err.Error(), "symlink")
+}
+
+func TestIsTokenExpired_NilExpiry(t *testing.T) {
+	pc := &ProfileCredentials{Method: "oauth", OAuthToken: "tok"}
+	assert.False(t, pc.IsTokenExpired(), "nil expiry should not be considered expired")
+}
+
+func TestIsTokenExpired_FutureExpiry(t *testing.T) {
+	future := time.Now().Add(10 * time.Minute)
+	pc := &ProfileCredentials{Method: "oauth", OAuthToken: "tok", TokenExpiresAt: &future}
+	assert.False(t, pc.IsTokenExpired(), "token with 10min remaining should not be expired")
+}
+
+func TestIsTokenExpired_Within60Seconds(t *testing.T) {
+	almostExpired := time.Now().Add(30 * time.Second)
+	pc := &ProfileCredentials{Method: "oauth", OAuthToken: "tok", TokenExpiresAt: &almostExpired}
+	assert.True(t, pc.IsTokenExpired(), "token within 60s of expiry should be considered expired")
+}
+
+func TestIsTokenExpired_PastExpiry(t *testing.T) {
+	past := time.Now().Add(-5 * time.Minute)
+	pc := &ProfileCredentials{Method: "oauth", OAuthToken: "tok", TokenExpiresAt: &past}
+	assert.True(t, pc.IsTokenExpired(), "token past expiry should be expired")
+}
+
+func TestSaveAndLoadCredentials_WithRefreshToken(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	expires := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	creds := &ProfileCredentials{
+		Method:         "oauth",
+		Subdomain:      "testcompany",
+		OAuthToken:     "access-tok",
+		OAuthClientID:  "client-123",
+		RefreshToken:   "refresh-tok",
+		TokenExpiresAt: &expires,
+	}
+
+	err := SaveCredentials("default", creds)
+	require.NoError(t, err)
+
+	loaded, err := LoadCredentials("default")
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+	assert.Equal(t, "access-tok", loaded.OAuthToken)
+	assert.Equal(t, "refresh-tok", loaded.RefreshToken)
+	require.NotNil(t, loaded.TokenExpiresAt)
+	assert.True(t, loaded.TokenExpiresAt.Equal(expires))
+}
+
+func TestLoadCredentials_BackwardCompat_NoRefreshFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	zdDir := filepath.Join(tmpDir, "zd")
+	os.MkdirAll(zdDir, 0700)
+
+	// Old-format credentials without refresh_token or token_expires_at
+	old := Credentials{
+		Profiles: map[string]ProfileCredentials{
+			"default": {
+				Method:        "oauth",
+				Subdomain:     "testco",
+				OAuthToken:    "old-token",
+				OAuthClientID: "old-client",
+			},
+		},
+	}
+	data, _ := json.MarshalIndent(old, "", "  ")
+	os.WriteFile(filepath.Join(zdDir, "credentials.json"), data, 0600)
+
+	loaded, err := LoadCredentials("default")
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+	assert.Equal(t, "old-token", loaded.OAuthToken)
+	assert.Empty(t, loaded.RefreshToken)
+	assert.Nil(t, loaded.TokenExpiresAt)
+	assert.False(t, loaded.IsTokenExpired(), "legacy token without expiry should not be expired")
 }
 
 func TestMultipleProfiles(t *testing.T) {

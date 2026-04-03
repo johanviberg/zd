@@ -20,19 +20,28 @@ import (
 )
 
 type tokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
 }
 
-func OAuthFlow(subdomain, clientID, clientSecret, scope string) (string, error) {
+// OAuthResult holds the tokens returned by an OAuth flow or token refresh.
+type OAuthResult struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresAt    *time.Time
+}
+
+func OAuthFlow(subdomain, clientID, clientSecret, scope string) (*OAuthResult, error) {
 	if err := config.ValidateSubdomain(subdomain); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Start local server on random port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return "", fmt.Errorf("starting local server: %w", err)
+		return nil, fmt.Errorf("starting local server: %w", err)
 	}
 	defer listener.Close()
 
@@ -41,12 +50,12 @@ func OAuthFlow(subdomain, clientID, clientSecret, scope string) (string, error) 
 
 	state, err := generateState()
 	if err != nil {
-		return "", fmt.Errorf("generating state: %w", err)
+		return nil, fmt.Errorf("generating state: %w", err)
 	}
 
 	codeVerifier, err := generateCodeVerifier()
 	if err != nil {
-		return "", fmt.Errorf("generating PKCE verifier: %w", err)
+		return nil, fmt.Errorf("generating PKCE verifier: %w", err)
 	}
 
 	authURL := fmt.Sprintf("https://%s.zendesk.com/oauth/authorizations/new?%s",
@@ -114,54 +123,84 @@ func OAuthFlow(subdomain, clientID, clientSecret, scope string) (string, error) 
 	select {
 	case code = <-codeCh:
 	case err := <-errCh:
-		return "", err
+		return nil, err
 	case <-time.After(5 * time.Minute):
-		return "", fmt.Errorf("OAuth flow timed out after 5 minutes")
+		return nil, fmt.Errorf("OAuth flow timed out after 5 minutes")
 	}
 
 	// Exchange code for token
-	token, err := exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier)
+	result, err := exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier)
 	if err != nil {
-		return "", fmt.Errorf("exchanging code: %w", err)
+		return nil, fmt.Errorf("exchanging code: %w", err)
 	}
 
-	return token, nil
+	return result, nil
 }
 
-func exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier string) (string, error) {
+func exchangeCode(subdomain, clientID, clientSecret, code, redirectURI, scope, codeVerifier string) (*OAuthResult, error) {
 	tokenURL := fmt.Sprintf("https://%s.zendesk.com/oauth/tokens", subdomain)
 
 	data := url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
 		"client_id":     {clientID},
-		"client_secret": {clientSecret},
 		"redirect_uri":  {redirectURI},
 		"scope":         {scope},
 		"code_verifier": {codeVerifier},
 	}
+	if clientSecret != "" {
+		data.Set("client_secret", clientSecret)
+	}
 
+	return postTokenRequest(tokenURL, data)
+}
+
+// RefreshAccessToken exchanges a refresh token for a new access token.
+// Zendesk refresh tokens are single-use: the response includes a new refresh token
+// that must be stored to replace the old one.
+func RefreshAccessToken(subdomain, clientID, refreshToken string) (*OAuthResult, error) {
+	tokenURL := fmt.Sprintf("https://%s.zendesk.com/oauth/tokens", subdomain)
+
+	data := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+		"client_id":     {clientID},
+	}
+
+	return postTokenRequest(tokenURL, data)
+}
+
+func postTokenRequest(tokenURL string, data url.Values) (*OAuthResult, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("token exchange failed with status %d", resp.StatusCode)
+		return nil, fmt.Errorf("token exchange failed with status %d", resp.StatusCode)
 	}
 
 	var tokenResp tokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return "", fmt.Errorf("parsing token response: %w", err)
+		return nil, fmt.Errorf("parsing token response: %w", err)
 	}
 
 	if tokenResp.AccessToken == "" {
-		return "", fmt.Errorf("empty access token in response")
+		return nil, fmt.Errorf("empty access token in response")
 	}
 
-	return tokenResp.AccessToken, nil
+	result := &OAuthResult{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+	}
+	if tokenResp.ExpiresIn > 0 {
+		t := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+		result.ExpiresAt = &t
+	}
+
+	return result, nil
 }
 
 func generateCodeVerifier() (string, error) {

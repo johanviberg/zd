@@ -96,29 +96,40 @@ Choose **one** of the methods below. Do not mix methods — `zd` uses the first 
 
 ### OAuth (recommended)
 
-OAuth is the recommended authentication method. It uses a browser-based consent flow, avoids putting secrets on the command line, and the resulting token is scoped to only the permissions you grant.
+OAuth is the recommended authentication method. It uses a browser-based consent flow with PKCE, avoids putting secrets on the command line, and the resulting token is scoped to only the permissions you grant. Tokens auto-refresh transparently when a refresh token is available.
 
-#### 1. Register an OAuth client in Zendesk
+#### 1. Register an OAuth client in Zendesk (admin, one-time)
 
 1. In Admin Center, go to **Apps and integrations → APIs → OAuth clients**, then click **Add OAuth client**.
 2. Fill in the fields:
    - **Name** — e.g. `zd CLI` (shown to users on the consent screen)
    - **Description** — optional
-   - **Client kind** — select **Confidential** (the CLI runs locally and stores the secret with restricted file permissions)
+   - **Client kind** — select **Public** (recommended — no client secret needed, secured via PKCE). Select **Confidential** if your security policy requires a client secret.
    - **Redirect URLs** — enter `http://127.0.0.1/callback` (the CLI starts a local server on a random port; Zendesk matches on host and path, ignoring the port for localhost)
-3. Click **Save**. A **Secret** field appears — copy it immediately, it is only shown in full once.
-4. Note the **Identifier** field — this is the Client ID.
+3. Click **Save** and note the **Identifier** field — this is the Client ID.
 
-#### 2. Log in
+#### 2. Configure the CLI (admin or first-time setup)
 
 ```bash
-zd auth login \
-  --subdomain mycompany \
-  --client-id YOUR_CLIENT_ID \
-  --client-secret YOUR_CLIENT_SECRET
+zd config set subdomain mycompany
+zd config set oauth_client_id YOUR_CLIENT_ID
 ```
 
-This opens a browser window for the OAuth consent flow. The CLI requests `read write` scopes. The token is stored locally.
+This only needs to be done once per machine (or distribute the `config.yaml` file to your team).
+
+#### 3. Log in
+
+```bash
+zd auth login
+```
+
+This opens a browser window for the OAuth consent flow. The CLI requests `read write` scopes. The access token and refresh token are stored locally. Subsequent API calls auto-refresh the token when it expires.
+
+If you're using a **confidential** OAuth client, pass the secret on login:
+
+```bash
+zd auth login --client-secret YOUR_CLIENT_SECRET
+```
 
 ### API token
 

@@ -33,12 +33,12 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("zendesk API error (status %d): %s", e.StatusCode, e.Body)
 }
 
-func NewClient(subdomain string, creds *auth.ProfileCredentials, traceID string) (*Client, error) {
+func NewClient(subdomain string, creds *auth.ProfileCredentials, profile, traceID string) (*Client, error) {
 	if err := config.ValidateSubdomain(subdomain); err != nil {
 		return nil, err
 	}
 
-	transport := buildTransport(creds)
+	transport := buildTransport(creds, profile)
 
 	return &Client{
 		HTTPClient: &http.Client{
@@ -50,7 +50,7 @@ func NewClient(subdomain string, creds *auth.ProfileCredentials, traceID string)
 	}, nil
 }
 
-func buildTransport(creds *auth.ProfileCredentials) http.RoundTripper {
+func buildTransport(creds *auth.ProfileCredentials, profile string) http.RoundTripper {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 	tlsCfg := base.TLSClientConfig
 	if tlsCfg == nil {
@@ -63,6 +63,7 @@ func buildTransport(creds *auth.ProfileCredentials) http.RoundTripper {
 
 	authTransport := &auth.AuthTransport{
 		Credentials: creds,
+		Profile:     profile,
 		Base:        base,
 	}
 

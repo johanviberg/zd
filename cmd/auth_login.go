@@ -103,25 +103,24 @@ func loginWithOAuth(cmd *cobra.Command, profile, subdomain string, cfg *config.C
 	if clientID == "" {
 		return fmt.Errorf("--client-id is required for first-time OAuth login")
 	}
-	if clientSecret == "" {
-		return fmt.Errorf("--client-secret is required for OAuth login")
-	}
 
 	scope, _ := cmd.Flags().GetString("scope")
 	if scope == "" {
 		return fmt.Errorf("--scope must not be empty")
 	}
 
-	token, err := auth.OAuthFlow(subdomain, clientID, clientSecret, scope)
+	result, err := auth.OAuthFlow(subdomain, clientID, clientSecret, scope)
 	if err != nil {
 		return fmt.Errorf("OAuth flow failed: %w", err)
 	}
 
 	creds := &auth.ProfileCredentials{
-		Method:        "oauth",
-		Subdomain:     subdomain,
-		OAuthToken:    token,
-		OAuthClientID: clientID,
+		Method:         "oauth",
+		Subdomain:      subdomain,
+		OAuthToken:     result.AccessToken,
+		OAuthClientID:  clientID,
+		RefreshToken:   result.RefreshToken,
+		TokenExpiresAt: result.ExpiresAt,
 	}
 
 	if err := auth.SaveCredentials(profile, creds); err != nil {
@@ -136,6 +135,10 @@ func loginWithOAuth(cmd *cobra.Command, profile, subdomain string, cfg *config.C
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Authenticated on %s.zendesk.com (OAuth)\n", subdomain)
+	msg := fmt.Sprintf("Authenticated on %s.zendesk.com (OAuth)", subdomain)
+	if result.RefreshToken != "" {
+		msg += " — token will auto-refresh"
+	}
+	fmt.Fprintln(os.Stderr, msg)
 	return nil
 }

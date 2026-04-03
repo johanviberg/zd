@@ -41,6 +41,18 @@ var authStatusCmd = &cobra.Command{
 		}
 		status["authenticated"] = true
 
+		if creds.Method == "oauth" {
+			if creds.TokenExpiresAt != nil {
+				status["token_expires_at"] = creds.TokenExpiresAt.Format("2006-01-02T15:04:05Z07:00")
+				if creds.IsTokenExpired() {
+					status["token_status"] = "expired"
+				} else {
+					status["token_status"] = "valid"
+				}
+			}
+			status["auto_refresh"] = creds.RefreshToken != ""
+		}
+
 		return formatter.Format(os.Stdout, status)
 	},
 }

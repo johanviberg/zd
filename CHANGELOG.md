@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Public OAuth client support — `--client-secret` is no longer required when using a Zendesk public OAuth client (secured via PKCE, which was already implemented)
+- OAuth refresh token support — access tokens auto-refresh transparently in the HTTP transport layer when a refresh token is available
+- `auth status` now shows token expiry time, validity status, and whether auto-refresh is enabled
+
+### Changed
+
+- OAuth login flow returns structured `OAuthResult` (access token, refresh token, expiry) instead of a bare token string
+- Simplified agent onboarding — after an admin configures `subdomain` and `oauth_client_id` once, agents authenticate with just `zd auth login`
+
 ## [0.5.0] - 2026-03-13
 
 ### Changed
